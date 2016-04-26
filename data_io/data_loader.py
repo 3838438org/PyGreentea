@@ -30,7 +30,7 @@ def update_shared_dataset(index_of_shared, index_of_which_dataset, input_slice,
     if 'mask' in dataset_numpy:
         if pygt.DEBUG:
             print("Mask fraction is", np.mean(dataset_numpy['mask']))
-        if np.sum(dataset_numpy['mask']) == 0:
+        if np.sum(dataset_numpy['mask']) == 0 or np.sum(dataset_numpy['data']) == 0:
             return "Not enough unmasked output"
     for key in shared_dataset:
         source_array = dataset_numpy[key].astype(dtypes[key])

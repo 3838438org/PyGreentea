@@ -8,6 +8,8 @@ def data_loader_should_be_used_with(data_arrays):
 
 
 def get_zero_padded_slice_from_array_by_offset(array, origin, shape):
+    assert len(array.shape) == len(origin)
+    assert len(array.shape) == len(shape)
     result = np.zeros(shape=shape, dtype=array.dtype)
     source_slices = tuple([
         slice(max(0, offset), min(slice_width+offset, source_width), 1)

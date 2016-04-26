@@ -676,7 +676,7 @@ def train(solver, test_net, data_arrays, train_data_arrays, options):
                 print("Pre-populating data loader's dataset #{i}/{size}"
                       .format(i=i, size=training_data_loader.size))
             shared_dataset_index, async_result = \
-                training_data_loader.start_refreshing_shared_dataset(i)
+                training_data_loader.start_refreshing_shared_dataset(i, wait=True)
     else:
         using_data_loader = False
 
