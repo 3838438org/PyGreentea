@@ -18,7 +18,9 @@ def get_numpy_dataset(original_dataset, input_slice, output_slice, transform):
     input_data_slices[-n_spatial_dimensions:] = input_slice
     print("input_data_slices:", input_data_slices)
     original_data_slice = get_zero_padded_array_slice(original_dataset['data'], input_data_slices)
-    data_slice = np.array(original_data_slice, dtype=np.float32) / (2. ** 8)
+    data_slice = np.array(original_data_slice, dtype=np.float32)
+    if original_data_slice.dtype.kind == 'i' or np.max(data_slice) > 1:
+        data_slice = data_slice / (2.0 ** 8)
     if transform:
         if 'transform' in original_dataset:
             lo, hi = original_dataset['transform']['scale']
