@@ -16,7 +16,8 @@ def get_numpy_dataset(original_dataset, input_slice, output_slice, transform):
     input_data_slices = [slice(0, l) for l in original_dataset['data'].shape]
     n_spatial_dimensions = len(input_slice)
     input_data_slices[-n_spatial_dimensions:] = input_slice
-    print("input_data_slices:", input_data_slices)
+    if pygt.DEBUG:
+        print("input_data_slices:", input_data_slices)
     original_data_slice = get_zero_padded_array_slice(original_dataset['data'], input_data_slices)
     data_slice = np.array(original_data_slice, dtype=np.float32)
     if original_data_slice.dtype.kind == 'i' or np.max(data_slice) > 1:
@@ -27,14 +28,15 @@ def get_numpy_dataset(original_dataset, input_slice, output_slice, transform):
             data_slice = 0.5 + (data_slice-0.5)*np.random.uniform(low=lo, high=hi)
             lo, hi = original_dataset['transform']['shift']
             data_slice = data_slice + np.random.uniform(low=lo, high=hi)
-        else:
+        elif pygt.DEBUG:
             print("WARNING: source data doesn't have 'transform' attribute.")
     dataset_numpy['data'] = data_slice
     # load outputs if desired
     if output_slice is not None:
         component_slices = [slice(0, l) for l in original_dataset['components'].shape]
         component_slices[-len(output_slice):] = output_slice
-        print("component_slices:", component_slices)
+        if pygt.DEBUG:
+            print("component_slices:", component_slices)
         dataset_numpy['components'] = get_zero_padded_array_slice(original_dataset['components'], component_slices)
         if 'label' in original_dataset:
             label_shape = original_dataset['label'].shape
@@ -43,7 +45,8 @@ def get_numpy_dataset(original_dataset, input_slice, output_slice, transform):
         else:
             # compute affinities from components
             dataset_numpy['label'] = pygt.malis.seg_to_affgraph(dataset_numpy['components'], original_dataset['nhood'])
-            warnings.warn("Computing affinity labels because 'label' wasn't provided in data source.", UserWarning)
+            if pygt.DEBUG:
+                warnings.warn("Computing affinity labels because 'label' wasn't provided in data source.", UserWarning)
         if 'mask' in original_dataset:
             dataset_numpy['mask'] = get_zero_padded_array_slice(original_dataset['mask'], output_slice)
             dataset_numpy['mask'] = dataset_numpy['mask'].astype(np.uint8)

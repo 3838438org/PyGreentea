@@ -720,6 +720,7 @@ def train(solver, test_net, data_arrays, train_data_arrays, options):
                 mask_slice = dataset['mask']
         if DEBUG:
             print("data_slice stats: min", data_slice.min(), "mean", data_slice.mean(), "max", data_slice.max())
+            print("mask_slice.mean(): ", mask_slice.mean())
         if options.loss_function == 'malis':
             components_slice, ccSizes = malis.connected_components_affgraph(label_slice.astype(int32), dataset['nhood'])
             # Also recomputing the corresponding labels (connected components)
