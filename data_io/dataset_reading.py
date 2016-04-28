@@ -6,6 +6,7 @@ from contextlib import contextmanager
 import h5py
 import libdvid
 import numpy as np
+from libdvid.voxels import VoxelsAccessor
 
 import PyGreentea as pygt
 from data_io.util import get_zero_padded_array_slice
@@ -51,12 +52,17 @@ def get_numpy_dataset(original_dataset, input_slice, output_slice, transform):
             dataset_numpy['mask'] = get_zero_padded_array_slice(original_dataset['mask'], output_slice)
             dataset_numpy['mask'] = dataset_numpy['mask'].astype(np.uint8)
         else:
-            # assume no masking
-            output_shape = tuple([slice_.stop - slice_.start for slice_ in output_slice])
-            assumed_output_mask = np.ones(shape=output_shape, dtype=np.uint8)
-            # dataset_numpy['mask'] = get_zero_padded_array_slice(assumed_output_mask, output_slice)
+            if type(original_dataset['components']) is VoxelsAccessor:
+                # infer mask values: 1 if component is nonzero, 0 otherwise
+                assumed_output_mask = np.not_equal(dataset_numpy['components'], 0).astype(np.uint8)
+                if pygt.DEBUG:
+                    warnings.warn("No mask provided. Setting to 1 where components != 0.", UserWarning)
+            else:
+                # assume no masking
+                assumed_output_mask = np.ones_like(dataset_numpy['components'], dtype=np.uint8)
+                if pygt.DEBUG:
+                    warnings.warn("No mask provided. Setting to 1 where outputs exist.", UserWarning)
             dataset_numpy['mask'] = assumed_output_mask
-            warnings.warn("No mask provided. Setting to 1 where outputs exist.", UserWarning)
     return dataset_numpy
 
 
