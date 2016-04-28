@@ -4,7 +4,6 @@ import warnings
 from contextlib import contextmanager
 
 import h5py
-import libdvid
 import numpy as np
 from libdvid.voxels import VoxelsAccessor
 
@@ -110,27 +109,21 @@ def reopen_dvid_dataset(dataset):
     opened_dataset = dict(dataset)
     for key in dataset:
         dataset_value = dataset[key]
-        if type(dataset_value) is libdvid.voxels.VoxelsAccessor:
+        if type(dataset_value) is VoxelsAccessor:
             hostname = dataset_value.hostname
             uuid = dataset_value.uuid
             data_name = dataset_value.data_name
-            array_view = libdvid.voxels.VoxelsAccessor(hostname, uuid, data_name)
-            opened_dataset[key] = array_view
+            new_voxels_accessor = VoxelsAccessor(hostname, uuid, data_name)
+            opened_dataset[key] = new_voxels_accessor
             if pygt.DEBUG:
                 print('opened', data_name, 'from', uuid, "at", hostname)
     yield opened_dataset
-    # for key in opened_dataset:
-    #     if type(opened_dataset[key]) is libdvid.voxels.VoxelsAccessor:
-    #         if pygt.DEBUG:
-    #             print('closing', opened_dataset[key].name, 'in', opened_dataset[key].file.filename)
-    #         opened_dataset[key].file.close()
 
 
-@contextmanager
 def reopen_dataset(dataset):
     if type(dataset['data']) is h5py.Dataset:
-        with reopen_h5py_dataset(dataset) as reopened_h5py_dataset:
-            yield reopened_h5py_dataset
-    elif type(dataset['data']) is libdvid.voxels.VoxelsAccessor:
-        with reopen_dvid_dataset(dataset) as reconnected_voxels_dataset:
-            yield reconnected_voxels_dataset
+        return reopen_h5py_dataset(dataset)
+    elif type(dataset['data']) is VoxelsAccessor:
+        return reopen_dvid_dataset(dataset)
+    else:
+        return dataset
