@@ -30,7 +30,7 @@ def update_shared_dataset(index_of_shared, index_of_which_dataset, input_slice,
     if 'mask' in dataset_numpy:
         if pygt.DEBUG:
             print("Mask fraction of dataset being read by DataLoader is", np.mean(dataset_numpy['mask']))
-        if np.sum(dataset_numpy['mask']) == 0 or np.sum(dataset_numpy['data']) == 0:
+        if np.sum(dataset_numpy['mask']) == 0:
             return "Not enough unmasked output"
     for key in shared_dataset:
         source_array = dataset_numpy[key].astype(dtypes[key])
@@ -162,8 +162,9 @@ class DataLoader(object):
                 if pygt.DEBUG:
                     print("Skipping and replacing 100% masked batch from dataset", dataset_index,
                           "at output_slice", output_slice)
-                return self.start_refreshing_shared_dataset(shared_dataset_index, transform=transform, wait=wait)
-            return self.ready_shared_datasets.append(dataset_metadata)
+                return self.start_refreshing_shared_dataset(shared_dataset_index, transform=transform, wait=False)
+            else:
+                return self.ready_shared_datasets.append(dataset_metadata)
         async_result = self.pool.apply_async(
             func=update_shared_dataset,
             kwds=dict(
