@@ -4,7 +4,7 @@ import unittest
 import h5py
 import numpy as np
 
-from PyGreentea.data_io.util import get_zero_padded_slice_from_array_by_offset, get_zero_padded_array_slice
+from data_io.util import get_zero_padded_slice_from_array_by_offset, get_zero_padded_array_slice
 
 
 class TestZeroPaddedSlicing(unittest.TestCase):

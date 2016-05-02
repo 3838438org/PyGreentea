@@ -8,9 +8,9 @@ DEBUG = False
 
 using_in_memory = False
 
-dataset_source_type = VoxelsAccessor
+# dataset_source_type = VoxelsAccessor
 # dataset_source_type = 'hdf5 file paths'
-# dataset_source_type = h5py.File
+dataset_source_type = h5py.File
 
 path_to_training_datasets = '/groups/turaga/home/turagas/data/FlyEM/fibsem_medulla_7col/'
 path_to_testing_datasets = '/groups/turaga/home/turagas/data/FlyEM/fibsem_medulla_7col/'
