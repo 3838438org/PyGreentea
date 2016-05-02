@@ -30,6 +30,9 @@ def get_numpy_dataset(original_dataset, input_slice, output_slice, transform):
             data_slice = data_slice + np.random.uniform(low=lo, high=hi)
         elif pygt.DEBUG:
             print("WARNING: source data doesn't have 'transform' attribute.")
+    if data_slice.ndim == n_spatial_dimensions:
+        new_shape = (1,) + data_slice.shape
+        data_slice = data_slice.reshape(new_shape)
     dataset_numpy['data'] = data_slice
     # load outputs if desired
     if output_slice is not None:
@@ -39,6 +42,9 @@ def get_numpy_dataset(original_dataset, input_slice, output_slice, transform):
         if pygt.DEBUG:
             print("component_slices:", component_slices)
         components_array = get_zero_padded_array_slice(original_dataset['components'], component_slices)
+        if components_array.ndim == n_spatial_dimensions:
+            new_shape = (1,) + components_array.shape
+            components_array = components_array.reshape(new_shape)
         dataset_numpy['components'] = components_array
         if 'label' in original_dataset:
             label_shape = original_dataset['label'].shape
@@ -67,6 +73,9 @@ def get_numpy_dataset(original_dataset, input_slice, output_slice, transform):
                 if pygt.DEBUG:
                     warnings.warn("No mask provided. Setting to 1 where outputs exist.", UserWarning)
         mask_array = mask_array.astype(np.uint8)
+        if mask_array.ndim == n_spatial_dimensions:
+            new_shape = (1,) + output_shape
+            mask_array = mask_array.reshape(new_shape)
         dataset_numpy['mask'] = mask_array
     return dataset_numpy
 
