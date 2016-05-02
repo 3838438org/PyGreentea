@@ -33,6 +33,7 @@ def get_numpy_dataset(original_dataset, input_slice, output_slice, transform):
     dataset_numpy['data'] = data_slice
     # load outputs if desired
     if output_slice is not None:
+        output_shape = tuple([slice_.stop - slice_.start for slice_ in output_slice])
         component_slices = [slice(0, l) for l in original_dataset['components'].shape]
         component_slices[-len(output_slice):] = output_slice
         if pygt.DEBUG:
@@ -44,9 +45,12 @@ def get_numpy_dataset(original_dataset, input_slice, output_slice, transform):
             dataset_numpy['label'] = get_zero_padded_array_slice(original_dataset['label'], label_slice)
         else:
             # compute affinities from components
-            dataset_numpy['label'] = pygt.malis.seg_to_affgraph(dataset_numpy['components'], original_dataset['nhood'])
             if pygt.DEBUG:
                 warnings.warn("Computing affinity labels because 'label' wasn't provided in data source.", UserWarning)
+            components_for_malis = dataset_numpy['components']
+            if dataset_numpy['components'].ndim != n_spatial_dimensions:
+                components_for_malis = components_for_malis.reshape(output_shape)
+            dataset_numpy['label'] = pygt.malis.seg_to_affgraph(components_for_malis, original_dataset['nhood'])
         if 'mask' in original_dataset:
             dataset_numpy['mask'] = get_zero_padded_array_slice(original_dataset['mask'], output_slice)
             dataset_numpy['mask'] = dataset_numpy['mask'].astype(np.uint8)
