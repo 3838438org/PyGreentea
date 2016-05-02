@@ -13,8 +13,8 @@ from data_io.util import get_zero_padded_array_slice
 
 def get_numpy_dataset(original_dataset, input_slice, output_slice, transform):
     dataset_numpy = dict()
-    input_data_slices = [slice(0, l) for l in original_dataset['data'].shape]
     n_spatial_dimensions = len(input_slice)
+    input_data_slices = [slice(0, l) for l in original_dataset['data'].shape]
     input_data_slices[-n_spatial_dimensions:] = input_slice
     if pygt.DEBUG:
         print("input_data_slices:", input_data_slices)
@@ -35,14 +35,16 @@ def get_numpy_dataset(original_dataset, input_slice, output_slice, transform):
     if output_slice is not None:
         output_shape = tuple([slice_.stop - slice_.start for slice_ in output_slice])
         component_slices = [slice(0, l) for l in original_dataset['components'].shape]
-        component_slices[-len(output_slice):] = output_slice
+        component_slices[-n_spatial_dimensions:] = output_slice
         if pygt.DEBUG:
             print("component_slices:", component_slices)
-        dataset_numpy['components'] = get_zero_padded_array_slice(original_dataset['components'], component_slices)
+        components_array = get_zero_padded_array_slice(original_dataset['components'], component_slices)
+        dataset_numpy['components'] = components_array
         if 'label' in original_dataset:
             label_shape = original_dataset['label'].shape
-            label_slice = (slice(0, label_shape[0]),) + output_slice
-            dataset_numpy['label'] = get_zero_padded_array_slice(original_dataset['label'], label_slice)
+            label_slices = [slice(0, l) for l in label_shape]
+            label_slices[-n_spatial_dimensions:] = output_slice
+            dataset_numpy['label'] = get_zero_padded_array_slice(original_dataset['label'], label_slices)
         else:
             # compute affinities from components
             if pygt.DEBUG:
@@ -52,20 +54,20 @@ def get_numpy_dataset(original_dataset, input_slice, output_slice, transform):
                 components_for_malis = components_for_malis.reshape(output_shape)
             dataset_numpy['label'] = pygt.malis.seg_to_affgraph(components_for_malis, original_dataset['nhood'])
         if 'mask' in original_dataset:
-            dataset_numpy['mask'] = get_zero_padded_array_slice(original_dataset['mask'], output_slice)
-            dataset_numpy['mask'] = dataset_numpy['mask'].astype(np.uint8)
+            mask_array = get_zero_padded_array_slice(original_dataset['mask'], output_slice)
         else:
             if type(original_dataset['components']) is VoxelsAccessor:
                 # infer mask values: 1 if component is nonzero, 0 otherwise
-                assumed_output_mask = np.not_equal(dataset_numpy['components'], 0).astype(np.uint8)
+                mask_array = np.not_equal(dataset_numpy['components'], 0)
                 if pygt.DEBUG:
                     warnings.warn("No mask provided. Setting to 1 where components != 0.", UserWarning)
             else:
                 # assume no masking
-                assumed_output_mask = np.ones_like(dataset_numpy['components'], dtype=np.uint8)
+                mask_array = np.ones_like(dataset_numpy['components'], dtype=np.uint8)
                 if pygt.DEBUG:
                     warnings.warn("No mask provided. Setting to 1 where outputs exist.", UserWarning)
-            dataset_numpy['mask'] = assumed_output_mask
+        mask_array = mask_array.astype(np.uint8)
+        dataset_numpy['mask'] = mask_array
     return dataset_numpy
 
 
