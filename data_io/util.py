@@ -30,3 +30,17 @@ def get_zero_padded_array_slice(array, slices):
     origin = [slice.start for slice in slices]
     shape = [slice.stop - slice.start for slice in slices]
     return get_zero_padded_slice_from_array_by_offset(array, origin, shape)
+
+
+def get_slices_from_dataset_offset(offset, input_shape, output_shape=None):
+    if output_shape is None:
+        output_slice = None
+    elif max(output_shape) == 0:
+        output_slice = None
+    else:
+        borders = tuple([(in_ - out_) / 2 for (in_, out_) in zip(input_shape, output_shape)])
+        output_slice = tuple([slice(offset[i] + borders[i], offset[i] + borders[i] + output_shape[i])
+                              for i in range(len(offset))])
+    input_slice = tuple([slice(offset[i], offset[i] + input_shape[i])
+                         for i in range(len(offset))])
+    return input_slice, output_slice

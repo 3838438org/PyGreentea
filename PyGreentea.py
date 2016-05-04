@@ -612,6 +612,7 @@ class MakeDatasetOffset(object):
         return offset_bounds
 
     def __call__(self, data_array_list):
+        self.random_state = np.random.RandomState()  # re-seed!
         which_dataset = self.random_state.randint(0, len(data_array_list))
         dataset = data_array_list[which_dataset]
         offset_bounds = self.calculate_offset_bounds(dataset)

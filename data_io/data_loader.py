@@ -2,14 +2,17 @@ from __future__ import print_function
 
 import multiprocessing
 import time
+import traceback
 from operator import mul
 from os.path import join
 
 import h5py
 import numpy as np
+import sys
 
 import PyGreentea as pygt
 from dataset_reading import get_numpy_dataset, reopen_dataset
+from util import get_slices_from_dataset_offset
 
 ''' where this will be used:
 * train()
@@ -21,26 +24,62 @@ from dataset_reading import get_numpy_dataset, reopen_dataset
 
 
 def update_shared_dataset(index_of_shared, index_of_which_dataset, input_slice,
-                          output_slice, transform=True):
+                          output_slice, transform=True, make_dataset_offset=None):
     start_time = time.time()
     shared_dataset = shared_datasets[index_of_shared]
-    original_dataset = datasets[index_of_which_dataset]
-    with reopen_dataset(original_dataset) as opened_dataset:
-        dataset_numpy = get_numpy_dataset(opened_dataset, input_slice, output_slice, transform)
-    if 'mask' in dataset_numpy:
-        if pygt.DEBUG:
-            print("Mask fraction of dataset being read by DataLoader is", np.mean(dataset_numpy['mask']))
-        if np.sum(dataset_numpy['mask']) == 0:
-            return "Not enough unmasked output"
+    dataset_is_ready = False
+    while not dataset_is_ready:
+        original_dataset = datasets[index_of_which_dataset]
+        with reopen_dataset(original_dataset) as opened_dataset:
+            dataset_numpy = get_numpy_dataset(opened_dataset, input_slice, output_slice, transform)
+        if 'mask' in dataset_numpy:
+            if pygt.DEBUG:
+                print("Mask fraction of dataset being read by DataLoader is", 
+                      np.mean(dataset_numpy['mask']))
+            if np.sum(dataset_numpy['mask']) == 0:
+                if make_dataset_offset is not None:
+                    index_of_which_dataset, offset = make_dataset_offset(datasets)
+                    input_shape = tuple([s.stop - s.start for s in input_slice])
+                    if output_slice is not None:
+                        output_shape = tuple([s.stop - s.start for s in output_slice])
+                    else:
+                        output_shape = None
+                    input_slice, output_slice = get_slices_from_dataset_offset(
+                        offset, input_shape, output_shape)
+                    if pygt.DEBUG:
+                        print("Skipping and replacing 100% masked batch from "
+                              "dataset", index_of_which_dataset,
+                              "at output_slice", output_slice)
+                else:
+                    return "DataLoader worker encountered a 100% masked" \
+                           "datachunk, but doesn't know how to replace it."
+            else:
+                dataset_is_ready = True
+        else:
+            dataset_is_ready = True
     for key in shared_dataset:
         source_array = dataset_numpy[key].astype(dtypes[key])
         target_mp_array = shared_dataset[key]
-        target_mp_array[:] = source_array.flatten()
         if pygt.DEBUG:
-            print("dataset_numpy['{0}']: dtype {1}, shape {2}".format(key, source_array.dtype, source_array.shape))
+            print("storing dataset_numpy['", key, "']", 
+                  "with dtype", source_array.dtype, 
+                  "shape", source_array.shape)
+        target_mp_array[:] = source_array.flatten()
     if pygt.DEBUG:
-        print("Loading data took", time.time() - start_time, "seconds")
+        print("Refreshing DataLoader dataset #", index_of_shared, 
+              "took %05.2fs" % (time.time() - start_time))
     return
+
+
+class DataLoaderException(Exception):
+    pass
+
+
+def execute_function(function, function_kwargs):
+    try:
+        return function(**function_kwargs)
+    except:
+        raise DataLoaderException("".join(traceback.format_exception(*sys.exc_info())))
 
 
 class DataLoader(object):
@@ -132,7 +171,6 @@ class DataLoader(object):
         for key in given_dataset:
             if key in shared_dataset or key in self.keys_to_ignore:
                 # we already loaded it, or we want to ignore it
-                # print("ignoring given_dataset['{key}']".format(key=key))
                 pass
             else:
                 # get the value from the original dataset dict
@@ -148,31 +186,24 @@ class DataLoader(object):
             dataset_index, offset = self.make_dataset_offset(self.datasets)
             if pygt.DEBUG:
                 print("DataLoader decided to load dataset #", dataset_index, "at offset", offset)
-        if self.outputs_are_ignored:
-            output_slice = None
-        else:
-            borders = tuple([(in_ - out_) / 2 for (in_, out_) in zip(self.input_shape, self.output_shape)])
-            output_slice = tuple([slice(offset[i] + borders[i], offset[i] + borders[i] + self.output_shape[i])
-                                  for i in range(len(offset))])
-        input_slice = tuple([slice(offset[i], offset[i] + self.input_shape[i])
-                             for i in range(len(offset))])
+        input_slice, output_slice = get_slices_from_dataset_offset(offset, self.input_shape, self.output_shape)
         dataset_metadata = dict(real=dataset_index, shared=shared_dataset_index, offset=offset)
         def pool_callback(return_value):
-            if return_value == "Not enough unmasked output":
-                if pygt.DEBUG:
-                    print("Skipping and replacing 100% masked batch from dataset", dataset_index,
-                          "at output_slice", output_slice)
-                return self.start_refreshing_shared_dataset(shared_dataset_index, transform=transform, wait=False)
-            else:
-                return self.ready_shared_datasets.append(dataset_metadata)
+            return self.ready_shared_datasets.append(dataset_metadata)
+
+        kwargs_for_refresh = dict(
+            index_of_shared=shared_dataset_index,
+            index_of_which_dataset=dataset_index,
+            input_slice=input_slice,
+            output_slice=output_slice,
+            transform=transform,
+            make_dataset_offset=self.make_dataset_offset,
+        )
         async_result = self.pool.apply_async(
-            func=update_shared_dataset,
+            func=execute_function,
             kwds=dict(
-                index_of_shared=shared_dataset_index,
-                index_of_which_dataset=dataset_index,
-                input_slice=input_slice,
-                output_slice=output_slice,
-                transform=transform
+                function=update_shared_dataset,
+                function_kwargs=kwargs_for_refresh,
             ),
             callback=pool_callback
         )
