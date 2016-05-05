@@ -12,7 +12,25 @@ from load_datasets import get_train_dataset
 
 
 class TestDataLoader(unittest.TestCase):
-    def execute_test_for(self, dataset_to_test, offset=(0, 0, 0)):
+    # @mock.patch('data_io.get_numpy_dataset', side_effect=mock_get_numpy_dataset)
+    def test_loads_data_chunks_from_dvid(self):
+        train_dataset = get_train_dataset(VoxelsAccessor)
+        dataset_to_test = train_dataset[0]
+        dataset, numpy_dataset = self.get_datasets_for(dataset_to_test, offset=(3000, 3000, 3000))
+        for key in ['data', 'components', 'label', 'mask']:
+            self.assertEqual(dataset[key].shape, numpy_dataset[key].shape)
+            np.testing.assert_almost_equal(dataset[key], numpy_dataset[key])
+
+    def test_loads_data_chunks_from_hdf5_fibsem(self):
+        train_dataset = get_train_dataset(h5py.File)
+        dataset_to_test = train_dataset[0]
+        dataset, numpy_dataset = self.get_datasets_for(dataset_to_test)
+        for key in ['data', 'components', 'label', 'mask']:
+            self.assertEqual(dataset[key].shape, numpy_dataset[key].shape)
+            np.testing.assert_almost_equal(dataset[key], numpy_dataset[key])
+
+    @staticmethod
+    def get_datasets_for(dataset_to_test, offset=(0, 0, 0)):
         input_shape = (100, 110, 120)
         output_shape = (40, 30, 80)
         borders = tuple([(in_ - out_) / 2 for (in_, out_) in zip(input_shape, output_shape)])
@@ -22,21 +40,9 @@ class TestDataLoader(unittest.TestCase):
         data_loader = DataLoader(1, [dataset_to_test], input_shape, output_shape)
         data_loader.start_refreshing_shared_dataset(0, dataset_index=0, offset=offset)
         dataset, index_of_shared_dataset = data_loader.get_dataset()
-        for key in ['data', 'components', 'label', 'mask']:
-            self.assertEqual(dataset[key].shape, numpy_dataset[key].shape)
-            np.testing.assert_almost_equal(dataset[key], numpy_dataset[key])
+        return dataset, numpy_dataset
             # self.assertIs(dataset[key].dtype, numpy_dataset[key].dtype)
 
-    # @mock.patch('data_io.get_numpy_dataset', side_effect=mock_get_numpy_dataset)
-    def test_loads_data_chunks_from_dvid(self):
-        train_dataset = get_train_dataset(VoxelsAccessor)
-        dataset_to_test = train_dataset[0]
-        self.execute_test_for(dataset_to_test, offset=(3000, 3000, 3000))
-
-    def test_loads_data_chunks_from_hdf5_fibsem(self):
-        train_dataset = get_train_dataset(h5py.File)
-        dataset_to_test = train_dataset[0]
-        self.execute_test_for(dataset_to_test)
 
 # import mock
 # from operator import mul

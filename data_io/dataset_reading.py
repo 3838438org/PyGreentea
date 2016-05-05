@@ -4,11 +4,12 @@ import warnings
 from contextlib import contextmanager
 
 import h5py
+import malis
 import numpy as np
 from libdvid.voxels import VoxelsAccessor
 
 import PyGreentea as pygt
-from data_io.util import get_zero_padded_array_slice
+from util import get_zero_padded_array_slice
 
 
 def get_numpy_dataset(original_dataset, input_slice, output_slice, transform):
@@ -58,7 +59,7 @@ def get_numpy_dataset(original_dataset, input_slice, output_slice, transform):
             components_for_malis = dataset_numpy['components']
             if dataset_numpy['components'].ndim != n_spatial_dimensions:
                 components_for_malis = components_for_malis.reshape(output_shape)
-            dataset_numpy['label'] = pygt.malis.seg_to_affgraph(components_for_malis, original_dataset['nhood'])
+            dataset_numpy['label'] = malis.seg_to_affgraph(components_for_malis, original_dataset['nhood'])
         if 'mask' in original_dataset:
             mask_array = get_zero_padded_array_slice(original_dataset['mask'], output_slice)
         else:

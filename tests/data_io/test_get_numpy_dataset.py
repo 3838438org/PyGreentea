@@ -16,15 +16,30 @@ class TestGetNumpyDataset(unittest.TestCase):
         train_dataset = get_train_dataset(h5py.File)
         dataset = train_dataset[0]
         origin = (105, 100, 100)
-        self.execute_tests_for(dataset, origin)
+        numpy_dataset, expected_dataset = self.get_datasets(dataset, origin)
+        for key in ['data', 'label', 'mask']:
+            self.assertEqual(numpy_dataset[key].shape, expected_dataset[key].shape)
+            np.testing.assert_almost_equal(
+                numpy_dataset[key],
+                expected_dataset[key],
+                err_msg=str((numpy_dataset[key], expected_dataset[key])),
+            )
 
     def test_works_with_dvid(self):
         train_dataset = get_train_dataset(VoxelsAccessor)
         dataset = train_dataset[0]
         origin = (3000, 3000, 3000)
-        self.execute_tests_for(dataset, origin)
+        numpy_dataset, expected_dataset = self.get_datasets(dataset, origin)
+        for key in ['data', 'label', 'mask']:
+            self.assertEqual(numpy_dataset[key].shape, expected_dataset[key].shape)
+            np.testing.assert_almost_equal(
+                numpy_dataset[key],
+                expected_dataset[key],
+                err_msg=str((numpy_dataset[key], expected_dataset[key])),
+            )
 
-    def execute_tests_for(self, dataset, origin):
+    @staticmethod
+    def get_datasets(dataset, origin):
         # output_shape = (40, 30, 80)
         # input_shape = (100, 110, 120)
         output_shape = (2,3,4)
@@ -51,13 +66,7 @@ class TestGetNumpyDataset(unittest.TestCase):
         expected_mask = np.ones(shape=(1,) + output_shape, dtype=np.uint8)
         expected_dataset['mask'] = expected_mask
         numpy_dataset = get_numpy_dataset(dataset, input_slices, output_slices, True)
-        for key in ['data', 'label', 'mask']:
-            self.assertEqual(numpy_dataset[key].shape, expected_dataset[key].shape)
-            np.testing.assert_almost_equal(
-                numpy_dataset[key],
-                expected_dataset[key],
-                err_msg=str((numpy_dataset[key], expected_dataset[key])),
-            )
+        return numpy_dataset, expected_dataset
 
 
 if __name__ == "__main__":

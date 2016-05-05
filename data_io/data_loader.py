@@ -7,6 +7,7 @@ from operator import mul
 from os.path import join
 
 import h5py
+import malis
 import numpy as np
 import sys
 
@@ -227,7 +228,7 @@ if __name__ == '__main__':
                 'name': dname,
                 'data': h5py.File(join(path, dname, 'im_uint8.h5'), 'r')['main'],
                 'components': h5py.File(join(path, dname, 'groundtruth_seg_thick.h5'), 'r')['main'],
-                'nhood': pygt.malis.mknhood3d(),
+                'nhood': malis.mknhood3d(),
                 'transform': dict({'scale': (0.8, 1.2), 'shift': (-0.2, 0.2)})
             })
         )
