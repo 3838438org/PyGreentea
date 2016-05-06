@@ -34,10 +34,9 @@ def update_shared_dataset(index_of_shared, index_of_which_dataset, input_slice,
         with reopen_dataset(original_dataset) as opened_dataset:
             dataset_numpy = get_numpy_dataset(opened_dataset, input_slice, output_slice, transform)
         if 'mask' in dataset_numpy:
-            if pygt.DEBUG:
-                print("Mask fraction of dataset being read by DataLoader is", 
-                      np.mean(dataset_numpy['mask']))
-            if np.sum(dataset_numpy['mask']) == 0:
+            mask_threshold = float(original_dataset.get('mask_threshold', 0))
+            mask_fraction_of_this_batch = np.mean(dataset_numpy['mask'])
+            if mask_fraction_of_this_batch <= mask_threshold:
                 if make_dataset_offset is not None:
                     index_of_which_dataset, offset = make_dataset_offset(datasets)
                     input_shape = tuple([s.stop - s.start for s in input_slice])
@@ -48,13 +47,17 @@ def update_shared_dataset(index_of_shared, index_of_which_dataset, input_slice,
                     input_slice, output_slice = get_slices_from_dataset_offset(
                         offset, input_shape, output_shape)
                     if pygt.DEBUG:
-                        print("Skipping and replacing 100% masked batch from "
-                              "dataset", index_of_which_dataset,
-                              "at output_slice", output_slice)
+                        print("Skipping: dataset", index_of_which_dataset,
+                              "output_slice", output_slice,
+                              "mask %06.4f" % mask_fraction_of_this_batch)
                 else:
                     return "DataLoader worker encountered a 100% masked" \
                            "datachunk, but doesn't know how to replace it."
             else:
+                if pygt.DEBUG:
+                    print("Using: dataset", index_of_which_dataset,
+                          "output_slice", output_slice,
+                          "mask %06.4f" % mask_fraction_of_this_batch)
                 dataset_is_ready = True
         else:
             dataset_is_ready = True
