@@ -4,7 +4,7 @@ import os
 from libdvid.voxels import VoxelsAccessor
 import h5py
 
-DEBUG = False
+DEBUG = True
 
 using_in_memory = False
 
@@ -15,6 +15,7 @@ dataset_source_type = h5py.File
 path_to_training_datasets = '/groups/turaga/home/turagas/data/FlyEM/fibsem_medulla_7col/'
 path_to_testing_datasets = '/groups/turaga/home/turagas/data/FlyEM/fibsem_medulla_7col/'
 testing_dataset_names = ['trvol-250-2-h5']
+dvid_uuid = 'e402c09ddd0f45e980d9be6e9fcb9bd0'
 
 training_dataset_names = os.listdir(path_to_training_datasets)
 training_dataset_names = [n for n in training_dataset_names if 'trvol-250-1' in n]

@@ -9,7 +9,8 @@ import numpy as np
 from libdvid.voxels import VoxelsAccessor
 
 import PyGreentea as pygt
-from util import get_zero_padded_array_slice
+from dvid_connectivity import get_good_components
+from util import get_zero_padded_array_slice, replace_array_except_whitelist
 
 
 def get_numpy_dataset(original_dataset, input_slice, output_slice, transform):
@@ -43,6 +44,16 @@ def get_numpy_dataset(original_dataset, input_slice, output_slice, transform):
         if pygt.DEBUG:
             print("component_slices:", component_slices)
         components_array = get_zero_padded_array_slice(original_dataset['components'], component_slices)
+        components_are_from_dvid = type(original_dataset['components']) is VoxelsAccessor
+        exclude_strings = original_dataset.get('body_names_to_exclude', [])
+        if exclude_strings and components_are_from_dvid:
+            dvid_uuid = original_dataset['components'].uuid
+            components_to_keep = get_good_components(dvid_uuid, exclude_strings)
+            if pygt.DEBUG:
+                print("components before:", list(np.unique(components_array)))
+            components_array = replace_array_except_whitelist(components_array, 0, components_to_keep)
+            if pygt.DEBUG:
+                print("components after:", list(np.unique(components_array)))
         if components_array.ndim == n_spatial_dimensions:
             new_shape = (1,) + components_array.shape
             components_array = components_array.reshape(new_shape)

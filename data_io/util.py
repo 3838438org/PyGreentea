@@ -44,3 +44,31 @@ def get_slices_from_dataset_offset(offset, input_shape, output_shape=None):
     input_slice = tuple([slice(offset[i], offset[i] + input_shape[i], 1)
                          for i in range(len(offset))])
     return input_slice, output_slice
+
+
+def replace_array_values(array, value_mappings):
+    # implementations taken from
+    # http://stackoverflow.com/questions/16992713/translate-every-element-in-numpy-array-according-to-key
+    u, inv = np.unique(array, return_inverse=True)
+    result = np.array([value_mappings.get(x, x) for x in u])[inv].reshape(array.shape)
+    # # other implementation...
+    # replace_values = np.vectorize(lambda value: value_mappings.get(value, value))
+    # result = replace_values(array)
+    # # another...
+    # new_array = array.copy().flatten()
+    # for k in value_mappings:
+    #     new_array[array == k] = value_mappings[k]
+    # result = new_array
+    # # another...
+    # for k in value_mappings:
+    #     array[array == k] = value_mappings[k]
+    # result = array
+    return result
+
+
+def replace_array_except_whitelist(array, new_value, whitelist_values):
+    value_mappings = {v: v for v in whitelist_values}
+    u, inv = np.unique(array, return_inverse=True)
+    replaced_values = [value_mappings.get(x, new_value) for x in u]
+    result = np.array(replaced_values, dtype=array.dtype)[inv].reshape(array.shape)
+    return result

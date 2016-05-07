@@ -9,7 +9,8 @@ import malis
 
 from data_io.dataset_reading import get_numpy_dataset
 from load_datasets import get_train_dataset
-
+from data_io.dvid_connectivity import get_good_components
+from data_io.util import replace_array_except_whitelist
 
 class TestGetNumpyDataset(unittest.TestCase):
     def test_works_with_hdf5_fibsem(self):
@@ -22,12 +23,13 @@ class TestGetNumpyDataset(unittest.TestCase):
             np.testing.assert_almost_equal(
                 numpy_dataset[key],
                 expected_dataset[key],
-                err_msg=str((numpy_dataset[key], expected_dataset[key])),
+                err_msg=str((key, "result", numpy_dataset[key], "desired", expected_dataset[key])),
             )
 
     def test_works_with_dvid(self):
         train_dataset = get_train_dataset(VoxelsAccessor)
         dataset = train_dataset[0]
+        dataset['body_names_to_exclude'] = ['out']
         origin = (3000, 3000, 3000)
         numpy_dataset, expected_dataset = self.get_datasets(dataset, origin)
         for key in ['data', 'label', 'mask']:
@@ -35,7 +37,7 @@ class TestGetNumpyDataset(unittest.TestCase):
             np.testing.assert_almost_equal(
                 numpy_dataset[key],
                 expected_dataset[key],
-                err_msg=str((numpy_dataset[key], expected_dataset[key])),
+                err_msg=str((key, "result", numpy_dataset[key], "desired", expected_dataset[key])),
             )
 
     @staticmethod
@@ -59,11 +61,23 @@ class TestGetNumpyDataset(unittest.TestCase):
         components_slices[-3:] = output_slices
         components_slices = tuple(components_slices)
         expected_components_array = np.array(dataset['components'][components_slices]).reshape((1,) + output_shape)
+        if type(dataset['components']) is VoxelsAccessor:
+            print("Is VoxelsAccessor...")
+            print("uniques before:", np.unique(expected_components_array))
+            dvid_uuid = dataset['components'].uuid
+            body_names_to_exclude = dataset.get('body_names_to_exclude')
+            good_bodies = get_good_components(dvid_uuid, body_names_to_exclude)
+            expected_components_array = \
+                replace_array_except_whitelist(expected_components_array, 0, good_bodies)
+            print("uniques after:", np.unique(expected_components_array))
         expected_dataset['components'] = expected_components_array
         components_for_affinity_generation = expected_components_array.reshape(output_shape)
         expected_label = malis.seg_to_affgraph(components_for_affinity_generation, malis.mknhood3d())
         expected_dataset['label'] = expected_label
-        expected_mask = np.ones(shape=(1,) + output_shape, dtype=np.uint8)
+        if type(dataset['components']) is VoxelsAccessor:
+            expected_mask = np.array(expected_components_array > 0).astype(np.uint8)
+        else:
+            expected_mask = np.ones(shape=(1,) + output_shape, dtype=np.uint8)
         expected_dataset['mask'] = expected_mask
         numpy_dataset = get_numpy_dataset(dataset, input_slices, output_slices, True)
         return numpy_dataset, expected_dataset

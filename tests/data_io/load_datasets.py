@@ -8,7 +8,7 @@ import numpy as np
 
 from libdvid.voxels import VoxelsAccessor
 
-from config import using_in_memory, path_to_training_datasets, training_dataset_names, dataset_source_type
+from config import using_in_memory, path_to_training_datasets, training_dataset_names, dataset_source_type, dvid_uuid
 
 
 def get_train_dataset(dataset_source_type_, using_in_memory=False):
@@ -26,7 +26,6 @@ def get_train_dataset(dataset_source_type_, using_in_memory=False):
             components='labels',
         )
         dvid_hostname = 'emdata2.int.janelia.org:7000'
-        dvid_uuid = 'fa600a32f6e042a3b8a69b3fc5e51a7d'
         dataset['name'] = dname
         dataset['nhood'] = malis.mknhood3d()
         for key in ['data', 'components']:
