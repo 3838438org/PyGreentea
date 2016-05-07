@@ -1,6 +1,7 @@
 from __future__ import print_function
 
 import multiprocessing
+import sys
 import time
 import traceback
 from operator import mul
@@ -9,7 +10,6 @@ from os.path import join
 import h5py
 import malis
 import numpy as np
-import sys
 
 import PyGreentea as pygt
 from dataset_reading import get_numpy_dataset, reopen_dataset
@@ -65,12 +65,12 @@ def update_shared_dataset(index_of_shared, index_of_which_dataset, input_slice,
         source_array = dataset_numpy[key].astype(dtypes[key])
         target_mp_array = shared_dataset[key]
         if pygt.DEBUG:
-            print("storing dataset_numpy['", key, "']", 
-                  "with dtype", source_array.dtype, 
+            print("storing dataset_numpy['", key, "']",
+                  "with dtype", source_array.dtype,
                   "shape", source_array.shape)
         target_mp_array[:] = source_array.flatten()
     if pygt.DEBUG:
-        print("Refreshing DataLoader dataset #", index_of_shared, 
+        print("Refreshing DataLoader dataset #", index_of_shared,
               "took %05.2fs" % (time.time() - start_time))
     return
 
@@ -157,6 +157,8 @@ class DataLoader(object):
             time.sleep(0.01)
         if wait_start_time is not None:
             print("Waited for dataset for %05.2fs" % (time.time() - wait_start_time))
+        if pygt.DEBUG:
+            print("Workers alive:", sum([proc.is_alive() for proc in self.pool._pool]))
         dataset_metadata = self.ready_shared_datasets.pop(0)
         index_of_shared_dataset = dataset_metadata['shared']
         index_of_given_dataset = dataset_metadata['real']
@@ -192,6 +194,7 @@ class DataLoader(object):
                 print("DataLoader decided to load dataset #", dataset_index, "at offset", offset)
         input_slice, output_slice = get_slices_from_dataset_offset(offset, self.input_shape, self.output_shape)
         dataset_metadata = dict(real=dataset_index, shared=shared_dataset_index, offset=offset)
+
         def pool_callback(return_value):
             return self.ready_shared_datasets.append(dataset_metadata)
 
@@ -216,7 +219,7 @@ class DataLoader(object):
             if final_result is not None:
                 print(final_result)  # probably an error
         return shared_dataset_index, async_result
-    
+
     def destroy(self):
         self.pool.terminate()
         return

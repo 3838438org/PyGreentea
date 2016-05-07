@@ -26,7 +26,7 @@ def get_numpy_dataset(original_dataset, input_slice, output_slice, transform):
     if transform:
         if 'transform' in original_dataset:
             lo, hi = original_dataset['transform']['scale']
-            data_slice = 0.5 + (data_slice-0.5)*np.random.uniform(low=lo, high=hi)
+            data_slice = 0.5 + (data_slice - 0.5) * np.random.uniform(low=lo, high=hi)
             lo, hi = original_dataset['transform']['shift']
             data_slice = data_slice + np.random.uniform(low=lo, high=hi)
         elif pygt.DEBUG:

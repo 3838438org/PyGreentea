@@ -448,6 +448,8 @@ def process(net, data_arrays, shapes=None, net_io=None, zero_pad_source_data=Tru
         net, data_arrays, process_borders=zero_pad_source_data)
     for source_dataset_index in dataset_offsets_to_process:
         list_of_offsets_to_process = dataset_offsets_to_process[source_dataset_index]
+        offsets_that_have_been_processed = []
+        offsets_that_have_been_requested = []
         if DEBUG:
             print("source_dataset_index = ", source_dataset_index)
             print("Processing source volume #{i} with offsets list {o}"
@@ -477,8 +479,16 @@ def process(net, data_arrays, shapes=None, net_io=None, zero_pad_source_data=Tru
                     transform=False,
                     wait=True
                 )
+                offsets_that_have_been_requested.append(offsets)
         # process each offset
         for i_offsets in range(len(list_of_offsets_to_process)):
+            if DEBUG:
+                print("offsets that have been requested but which haven't been processed:",
+                    sorted(list(
+                        set([tuple(o) for o in offsets_that_have_been_requested]) - \
+                        set([tuple(o) for o in offsets_that_have_been_processed])
+                    ))
+                )
             if using_data_loader:
                 dataset, index_of_shared_dataset = processing_data_loader.get_dataset()
                 offsets = list(dataset['offset'])  # convert tuple to list
@@ -504,6 +514,7 @@ def process(net, data_arrays, shapes=None, net_io=None, zero_pad_source_data=Tru
             output = process_input_data(net_io, data_slice)
             print(offsets)
             print(output.mean())
+            offsets_that_have_been_processed.append(offsets)
             pads = [int(math.ceil(pad / float(2))) for pad in input_padding]
             offsets_for_pred_array = [0] + [offset + pad for offset, pad in zip(offsets, pads)]
             set_slice_data(pred_array, output, offsets_for_pred_array, [fmaps_out] + output_dims)
@@ -516,6 +527,7 @@ def process(net, data_arrays, shapes=None, net_io=None, zero_pad_source_data=Tru
                     source_dataset_index,
                     transform=False
                 )
+                offsets_that_have_been_requested.append(new_offsets)
         pred_arrays.append(pred_array)
         if using_data_loader:
             processing_data_loader.destroy()
