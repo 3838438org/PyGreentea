@@ -760,10 +760,24 @@ def train(solver, test_net, data_arrays, train_data_arrays, options):
         while gc.collect():
             pass
         time_of_iteration = time.time() - start
-        if options.loss_function == 'euclid' or options.loss_function == 'euclid_aniso':
-            print("[Iter %i] Time: %05.2fs Loss: %f, frac_pos=%f, w_pos=%f" % (i, time_of_iteration, loss, frac_pos, w_pos))
+        if 'mask' in dataset:
+            mask_fraction_str = "%07.5f" % np.mean(dataset['mask'])
         else:
-            print("[Iter %i] Time: %05.2fs Loss: %f" % (i, time_of_iteration, loss))
+            mask_fraction_str = "no mask"
+        if options.loss_function == 'euclid' or options.loss_function == 'euclid_aniso':
+            print("[Iter %06i]" % i,
+                  "Time: %05.2fs" % time_of_iteration,
+                  "Loss: %08.6f" % loss,
+                  "Mask:", mask_fraction_str,
+                  "frac_pos=%08.6f" % frac_pos,
+                  "w_pos=%08.6f" % w_pos,
+                  )
+        else:
+            print("[Iter %06i]" % i,
+                  "Time: %05.2fs" % time_of_iteration,
+                  "Loss: %08.6f" % loss,
+                  "Mask:", mask_fraction_str,
+                  )
         losses += [loss]
         if hasattr(options, 'loss_snapshot') and ((i % options.loss_snapshot) == 0):
             io.savemat('loss.mat',{'loss':losses})
