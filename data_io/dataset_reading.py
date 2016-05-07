@@ -7,6 +7,7 @@ import h5py
 import malis
 import numpy as np
 from libdvid.voxels import VoxelsAccessor
+from scipy import ndimage
 
 import PyGreentea as pygt
 from dvid_connectivity import get_good_components
@@ -84,6 +85,9 @@ def get_numpy_dataset(original_dataset, input_slice, output_slice, transform):
                 mask_array = np.ones_like(dataset_numpy['components'], dtype=np.uint8)
                 if pygt.DEBUG:
                     warnings.warn("No mask provided. Setting to 1 where outputs exist.", UserWarning)
+        mask_dilation_steps = original_dataset.get('mask_dilation_steps', 0)
+        if mask_dilation_steps:
+            mask_array = ndimage.binary_dilation(mask_array, iterations=mask_dilation_steps)
         mask_array = mask_array.astype(np.uint8)
         if mask_array.ndim == n_spatial_dimensions:
             new_shape = (1,) + output_shape
