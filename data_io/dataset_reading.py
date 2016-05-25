@@ -141,7 +141,7 @@ def reopen_h5py_dataset(dataset):
 
 
 @contextmanager
-def reopen_dvid_dataset(dataset):
+def reopen_libdvid_voxelsaccessor_dataset(dataset):
     opened_dataset = dict(dataset)
     for key in dataset:
         dataset_value = dataset[key]
@@ -156,10 +156,18 @@ def reopen_dvid_dataset(dataset):
     yield opened_dataset
 
 
+@contextmanager
+def yield_thing(thing):
+    '''
+    dummy function for dataset objects that don't need to be reinitialized
+    '''
+    yield thing
+
+
 def reopen_dataset(dataset):
     if type(dataset['data']) is h5py.Dataset:
         return reopen_h5py_dataset(dataset)
     elif type(dataset['data']) is VoxelsAccessor:
-        return reopen_dvid_dataset(dataset)
+        return reopen_libdvid_voxelsaccessor_dataset(dataset)
     else:
-        return dataset
+        return yield_thing(dataset)
