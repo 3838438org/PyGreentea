@@ -23,6 +23,10 @@ from util import get_slices_from_dataset_offset
   * getting batches from a dataset, specified with offset and input size
 '''
 
+if pygt.DEBUG:
+    logger = multiprocessing.log_to_stderr()
+    logger.setLevel(multiprocessing.SUBDEBUG)
+
 
 def update_shared_dataset(index_of_shared, index_of_which_dataset, input_slice,
                           output_slice, transform=True, make_dataset_offset=None):
@@ -47,7 +51,8 @@ def update_shared_dataset(index_of_shared, index_of_which_dataset, input_slice,
                     input_slice, output_slice = get_slices_from_dataset_offset(
                         offset, input_shape, output_shape)
                     if pygt.DEBUG:
-                        print("Skipping: dataset", index_of_which_dataset,
+                        print(multiprocessing.current_process().name,
+                              "Skipping: dataset", index_of_which_dataset,
                               "output_slice", output_slice,
                               "mask %06.4f" % mask_fraction_of_this_batch)
                 else:
@@ -55,7 +60,8 @@ def update_shared_dataset(index_of_shared, index_of_which_dataset, input_slice,
                            "datachunk, but doesn't know how to replace it."
             else:
                 if pygt.DEBUG:
-                    print("Using: dataset", index_of_which_dataset,
+                    print(multiprocessing.current_process().name,
+                          "Using: dataset", index_of_which_dataset,
                           "output_slice", output_slice,
                           "mask %06.4f" % mask_fraction_of_this_batch)
                 dataset_is_ready = True
@@ -65,12 +71,14 @@ def update_shared_dataset(index_of_shared, index_of_which_dataset, input_slice,
         source_array = dataset_numpy[key].astype(dtypes[key])
         target_mp_array = shared_dataset[key]
         if pygt.DEBUG:
-            print("storing dataset_numpy['", key, "']",
+            print(multiprocessing.current_process().name,
+                  "storing dataset_numpy['", key, "']",
                   "with dtype", source_array.dtype,
                   "shape", source_array.shape)
         target_mp_array[:] = source_array.flatten()
     if pygt.DEBUG:
-        print("Refreshing DataLoader dataset #", index_of_shared,
+        print(multiprocessing.current_process().name,
+              "Refreshing DataLoader dataset #", index_of_shared,
               "took %05.2fs" % (time.time() - start_time))
     return
 
@@ -150,10 +158,17 @@ class DataLoader(object):
 
     def get_dataset(self, copy=False):
         wait_start_time = None
+        logging_time_threshold = 20
+        logging_period = 1
         while len(self.ready_shared_datasets) == 0:
             if wait_start_time is None:
                 wait_start_time = time.time()
                 print("Waiting for dataset...")
+            else:
+                time_been_waiting = time.time() - wait_start_time
+                if time_been_waiting > logging_time_threshold:
+                    print("been waiting for", time_been_waiting)
+                    logging_time_threshold += logging_period
             time.sleep(0.01)
         if wait_start_time is not None:
             print("Waited for dataset for %05.2fs" % (time.time() - wait_start_time))
