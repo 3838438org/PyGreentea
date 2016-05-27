@@ -658,8 +658,8 @@ def train(solver, test_net, data_arrays, train_data_arrays, options):
     shapes += [[1,fmaps_out] + output_dims]
     
     if (options.loss_function == 'malis'):
-        # Connected components input   (n = 1, f = 1, spatial dims)
-        shapes += [[1,1] + output_dims]
+        # Connected components input. 2 channels, one for each phase of computation
+        shapes += [[1, 2] + output_dims]
     if (options.loss_function == 'euclid'):
         # Error scale input   (n = 1, f = #edges, spatial dims)
         shapes += [[1,fmaps_out] + output_dims]
@@ -710,6 +710,8 @@ def train(solver, test_net, data_arrays, train_data_arrays, options):
                 origin=[0] + offsets,
                 shape=[fmaps_in] + input_dims)
             label_slice = slice_data(dataset['label'], [0] + [offsets[di] + int(math.ceil(input_padding[di] / float(2))) for di in range(0, dims)], [fmaps_out] + output_dims)
+            components_slice = None
+            mask_slice = None
             if 'transform' in dataset:
                 # transform the input
                 # assumes that the original input pixel values are scaled between (0,1)
@@ -728,16 +730,45 @@ def train(solver, test_net, data_arrays, train_data_arrays, options):
             assert label_slice.shape == (fmaps_out,) + tuple(output_dims)
             if DEBUG:
                 print("Training with next dataset in data loader, which has offset", dataset['offset'])
-            mask_slice = None
-            if 'mask' in dataset:
-                mask_slice = dataset['mask']
+            mask_slice = dataset['mask']
+            assert mask_slice.shape == (1,) + tuple(output_dims)
+            components_slice = dataset['components']
+            assert components_slice.shape == (1,) + tuple(output_dims)
         if DEBUG:
             print("data_slice stats: min", data_slice.min(), "mean", data_slice.mean(), "max", data_slice.max())
             print("mask_slice.mean(): ", mask_slice.mean())
         if options.loss_function == 'malis':
-            components_slice, ccSizes = malis.connected_components_affgraph(label_slice.astype(int32), dataset['nhood'])
-            # Also recomputing the corresponding labels (connected components)
-            net_io.setInputs([data_slice, label_slice, components_slice, data_arrays[0]['nhood']])
+            if components_slice is None:
+                components_slice, ccSizes = malis.connected_components_affgraph(label_slice.astype(int32), dataset['nhood'])
+                components_shape = (fmaps_out,) + tuple(output_dims)
+                components_slice = components_slice.reshape(components_shape)
+            mean_mask = np.mean(mask_slice)
+            if mean_mask == 1 or mask_slice is None:
+                components_negative_slice = components_slice
+                if mask_slice is None:
+                    raise ValueError("mask not defined.")
+            else:
+                '''
+                assumes that...
+                * mask_slice is 1 at voxels containing good components, with a small dilation
+                * components_slice does not contain component values equal to 1. (Original values were incremented.)
+                '''
+                mask_inverse = np.ones_like(mask_slice) - mask_slice
+                # assert mask_inverse.shape == components_slice.shape
+                mask_inverse = mask_inverse.astype(components_slice.dtype)
+                # assert mask_inverse.dtype == components_slice.dtype
+                components_negative_slice = components_slice + mask_inverse
+            components_positive_slice = components_slice
+            # if mean_mask < 1:
+            #     diffs = components_negative_slice == components_positive_slice
+            #     print("neg/pos diff freq:", np.mean(diffs), mean_mask)
+            #     # if some stuff is masked, then differences should exist between positive and negative
+            #     assert not np.array_equal(components_negative_slice, components_positive_slice), \
+            #         (mean_mask, np.mean(components_negative_slice), np.mean(components_positive_slice))
+            components_malis_slice = np.concatenate(
+                (components_negative_slice, components_positive_slice),
+                axis=0)
+            net_io.setInputs([data_slice, label_slice, components_malis_slice, data_arrays[0]['nhood']])
         elif options.loss_function == 'euclid':
             label_slice_mean = label_slice.mean()
             if 'mask' in dataset:

@@ -12,6 +12,7 @@ from libdvid.voxels import VoxelsAccessor
 from scipy import ndimage
 
 import PyGreentea as pygt
+import dvision
 from dvid_connectivity import get_good_components
 from util import get_zero_padded_array_slice, replace_array_except_whitelist
 
@@ -50,7 +51,8 @@ def get_numpy_dataset(original_dataset, input_slice, output_slice, transform):
         if pygt.DEBUG:
             print(multiprocessing.current_process().name, "component_slices:", component_slices)
         components_array = get_zero_padded_array_slice(original_dataset['components'], component_slices)
-        components_are_from_dvid = type(original_dataset['components']) is VoxelsAccessor
+        source_class = type(original_dataset['components'])
+        components_are_from_dvid = source_class in (VoxelsAccessor, dvision.DVIDDataInstance)
         exclude_strings = original_dataset.get('body_names_to_exclude', [])
         if exclude_strings and components_are_from_dvid:
             dvid_uuid = original_dataset['components'].uuid
@@ -58,6 +60,9 @@ def get_numpy_dataset(original_dataset, input_slice, output_slice, transform):
             if pygt.DEBUG:
                 print(multiprocessing.current_process().name, "components before:", list(np.unique(components_array)))
             components_array = replace_array_except_whitelist(components_array, 0, components_to_keep)
+            non_zero_elements = np.not_equal(components_array, 0)
+            components_array += 1  # increment everything
+            components_array *= non_zero_elements  # set stuff that used to be zero, back to zero
             if pygt.DEBUG:
                 print(multiprocessing.current_process().name, "components after:", list(np.unique(components_array)))
         if components_array.ndim == n_spatial_dimensions:
@@ -80,7 +85,7 @@ def get_numpy_dataset(original_dataset, input_slice, output_slice, transform):
         if 'mask' in original_dataset:
             mask_array = get_zero_padded_array_slice(original_dataset['mask'], output_slice)
         else:
-            if type(original_dataset['components']) is VoxelsAccessor:
+            if components_are_from_dvid:
                 # infer mask values: 1 if component is nonzero, 0 otherwise
                 mask_array = np.not_equal(dataset_numpy['components'], 0)
                 if pygt.DEBUG:
@@ -90,7 +95,7 @@ def get_numpy_dataset(original_dataset, input_slice, output_slice, transform):
                 mask_array = np.ones_like(dataset_numpy['components'], dtype=np.uint8)
                 if pygt.DEBUG:
                     warnings.warn("No mask provided. Setting to 1 where outputs exist.", UserWarning)
-        mask_dilation_steps = original_dataset.get('mask_dilation_steps', 0)
+        mask_dilation_steps = original_dataset.get('mask_dilation_steps', 1)
         if mask_dilation_steps:
             mask_array = ndimage.binary_dilation(mask_array, iterations=mask_dilation_steps)
         mask_array = mask_array.astype(np.uint8)
