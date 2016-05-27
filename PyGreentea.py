@@ -742,8 +742,11 @@ def train(solver, test_net, data_arrays, train_data_arrays, options):
         if options.loss_function == 'malis':
             if components_slice is None:
                 components_slice, ccSizes = malis.connected_components_affgraph(label_slice.astype(int32), dataset['nhood'])
-                components_shape = (fmaps_out,) + tuple(output_dims)
+                components_shape = (1,) + tuple(output_dims)
                 components_slice = components_slice.reshape(components_shape)
+            # nonzero_components = np.not_equal(components_slice, 0)
+            # components_slice += 1
+            # components_slice *= nonzero_components
             mean_mask = np.mean(mask_slice)
             if mean_mask == 1 or mask_slice is None:
                 components_negative_slice = components_slice

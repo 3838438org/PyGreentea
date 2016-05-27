@@ -60,9 +60,6 @@ def get_numpy_dataset(original_dataset, input_slice, output_slice, transform):
             if pygt.DEBUG:
                 print(multiprocessing.current_process().name, "components before:", list(np.unique(components_array)))
             components_array = replace_array_except_whitelist(components_array, 0, components_to_keep)
-            non_zero_elements = np.not_equal(components_array, 0)
-            components_array += 1  # increment everything
-            components_array *= non_zero_elements  # set stuff that used to be zero, back to zero
             if pygt.DEBUG:
                 print(multiprocessing.current_process().name, "components after:", list(np.unique(components_array)))
         if components_array.ndim == n_spatial_dimensions:
@@ -81,7 +78,15 @@ def get_numpy_dataset(original_dataset, input_slice, output_slice, transform):
             components_for_malis = dataset_numpy['components']
             if dataset_numpy['components'].ndim != n_spatial_dimensions:
                 components_for_malis = components_for_malis.reshape(output_shape)
-            dataset_numpy['label'] = malis.seg_to_affgraph(components_for_malis, original_dataset['nhood'])
+            label_slice = malis.seg_to_affgraph(components_for_malis, original_dataset['nhood'])
+            dataset_numpy['label'] = label_slice
+            components_slice, ccSizes = malis.connected_components_affgraph(label_slice.astype(np.int32), original_dataset['nhood'])
+            components_shape = (1,) + output_shape
+            components_slice = components_slice.reshape(components_shape)
+            nonzero_components = np.not_equal(components_slice, 0)
+            components_slice += 1
+            components_slice *= nonzero_components
+            dataset_numpy['components'] = components_slice
         if 'mask' in original_dataset:
             mask_array = get_zero_padded_array_slice(original_dataset['mask'], output_slice)
         else:
