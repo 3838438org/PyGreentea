@@ -14,11 +14,12 @@ import numpy as np
 import png
 from scipy import io
 
+import visualization
 
 # set this to True after importing this module to prevent multithreading
 USE_ONE_THREAD = False
-
 DEBUG = False
+SAVE_IMAGES = False
 
 # Determine where PyGreentea is
 pygtpath = os.path.normpath(os.path.realpath(os.path.abspath(os.path.split(inspect.getfile(inspect.currentframe()))[0])))
@@ -697,7 +698,8 @@ def train(solver, test_net, data_arrays, train_data_arrays, options):
     for i in range(solver.iter, solver.max_iter):
         start = time.time()
         if (options.test_net != None and i % options.test_interval == 1):
-            test_eval.evaluate(i)
+            if not SAVE_IMAGES:
+                test_eval.evaluate(i)
             if USE_ONE_THREAD:
                 # after testing finishes, switch back to the training device
                 caffe.select_device(options.train_device, False)
@@ -786,6 +788,43 @@ def train(solver, test_net, data_arrays, train_data_arrays, options):
             # These are the affinity edge values
             net_io.setInputs([data_slice, label_slice])
         loss = solver.step(1)  # Single step
+        if SAVE_IMAGES:
+            dataset_to_show = dict()
+            net_weight_transfer(test_net, solver.net)
+            test_net_shapes = [[1, fmaps_in] + input_dims]
+            test_net_io = NetInputWrapper(test_net, test_net_shapes)
+            test_net_io.setInputs([data_slice])
+            test_net_io.net.forward()
+            net_outputs = test_net_io.net.blobs['prob']
+            affinity_prediction = net_outputs.data[0].copy()
+            dataset_to_show['pred'] = affinity_prediction
+            # import zwatershed
+            # s = zwatershed.zwatershed(affinity_prediction, [50000])
+            # components_prediction = s[0]
+            components_prediction = np.zeros(shape=output_dims, dtype=np.int32)
+            dataset_to_show['predseg'] = components_prediction
+            dataset_to_show['data'] = data_slice * (2 ** 8)
+            dataset_to_show['data'] = dataset_to_show['data'].astype(np.uint8).reshape(input_dims)
+            if components_slice is None:
+                components_slice, _ = malis.connected_components_affgraph(label_slice.astype(np.int32), dataset['nhood'])
+            dataset_to_show['components'] = components_slice.reshape(output_dims)
+            dataset_to_show['label'] = label_slice
+            dataset_to_show['mask'] = mask_slice.reshape(output_dims)
+            try:
+                dataset_to_show['components_negative'] = components_negative_slice.reshape(output_dims)
+                dataset_to_show['components_positive'] = components_positive_slice.reshape(output_dims)
+            except UnboundLocalError:
+                # variables weren't declared, because malis isn't being computed
+                pass
+            assert dataset_to_show['data'].shape == tuple(input_dims), dataset_to_show['data'].shape
+            assert dataset_to_show['label'].shape == (3,) + tuple(output_dims), dataset_to_show['label'].shape
+            assert dataset_to_show['components'].shape == tuple(output_dims), dataset_to_show['components'].shape
+            assert dataset_to_show['pred'].shape == (3,) + tuple(output_dims), dataset_to_show['pred'].shape
+            assert dataset_to_show['predseg'].shape == tuple(output_dims), dataset_to_show['predseg'].shape
+            f = visualization.showme(dataset_to_show, int(input_dims[0] / 2))
+            if not os.path.exists('snapshots'):
+                os.mkdir('snapshots')
+            f.savefig('snapshots/%08d.png' % i)
         if using_data_loader:
             training_data_loader.start_refreshing_shared_dataset(index_of_shared_dataset)
         while gc.collect():
