@@ -1,13 +1,4 @@
-import itertools
-import json
-import math
-import os
-import pprint
-import warnings
-
-import h5py
 import numpy as np
-import requests
 
 from .requester import DVIDRequester
 dvid_requester = DVIDRequester(['slowpoke1'])
@@ -29,6 +20,3 @@ dtype_mappings = {
 from .data_instance import DVIDDataInstance
 from .repo import DVIDRepo
 from .connection import DVIDConnection
-
-
-

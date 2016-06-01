@@ -4,6 +4,8 @@ from operator import mul
 import numpy as np
 import time
 
+from functools import reduce
+
 from data_io.util import replace_array_values, replace_array_except_whitelist
 
 

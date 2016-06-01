@@ -8,7 +8,7 @@ import h5py
 import malis
 
 from data_io.dataset_reading import get_numpy_dataset
-from load_datasets import get_train_dataset
+from .load_datasets import get_train_dataset
 from data_io.dvid_connectivity import get_good_components
 from data_io.util import replace_array_except_whitelist
 

@@ -8,7 +8,7 @@ import numpy as np
 
 from data_io import DataLoader
 from data_io.dataset_reading import get_numpy_dataset
-from load_datasets import get_train_dataset
+from .load_datasets import get_train_dataset
 
 
 class TestDataLoader(unittest.TestCase):

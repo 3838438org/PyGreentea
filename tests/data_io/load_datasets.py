@@ -8,7 +8,7 @@ import numpy as np
 
 from libdvid.voxels import VoxelsAccessor
 
-from config import using_in_memory, path_to_training_datasets, training_dataset_names, dataset_source_type, dvid_uuid
+from .config import using_in_memory, path_to_training_datasets, training_dataset_names, dataset_source_type, dvid_uuid
 
 
 def get_train_dataset(dataset_source_type_, using_in_memory=False):

@@ -10,10 +10,11 @@ from os.path import join
 import h5py
 import malis
 import numpy as np
+from functools import reduce
 
 import PyGreentea as pygt
-from dataset_reading import get_numpy_dataset, reopen_dataset
-from util import get_slices_from_dataset_offset
+from .dataset_reading import get_numpy_dataset, reopen_dataset
+from .util import get_slices_from_dataset_offset
 
 ''' where this will be used:
 * train()
