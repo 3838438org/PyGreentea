@@ -12,13 +12,16 @@ class DVIDDataInstance(object):
         self.name = name
         api_url = 'http://' + self.hostname + ':' + str(port) + '/api/'
         self.url_prefix = api_url + 'node/' + node + '/' + name + '/'
+        self._info_cache = None
 
     @property
     def info(self):
-        url = self.url_prefix + 'info'
-        response = dvid_requester.get(url)
-        if not response.ok: print(response.url, response.text)
-        return response.json()
+        if self._info_cache is None:
+            url = self.url_prefix + 'info'
+            response = dvid_requester.get(url)
+            if not response.ok: print(response.url, response.text)
+            self._info_cache = response.json()
+        return self._info_cache
 
     @property
     def dtype(self):
