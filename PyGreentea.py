@@ -827,8 +827,6 @@ def train(solver, test_net, data_arrays, train_data_arrays, options):
             if not os.path.exists('snapshots'):
                 os.mkdir('snapshots')
             f.savefig('snapshots/%08d.png' % i)
-        if using_data_loader:
-            training_data_loader.start_refreshing_shared_dataset(index_of_shared_dataset)
         while gc.collect():
             pass
         time_of_iteration = time.time() - start
@@ -853,5 +851,7 @@ def train(solver, test_net, data_arrays, train_data_arrays, options):
         losses += [loss]
         if hasattr(options, 'loss_snapshot') and ((i % options.loss_snapshot) == 0):
             io.savemat('loss.mat',{'loss':losses})
+        if using_data_loader:
+            training_data_loader.start_refreshing_shared_dataset(index_of_shared_dataset)
     if using_data_loader:
         training_data_loader.destroy()
