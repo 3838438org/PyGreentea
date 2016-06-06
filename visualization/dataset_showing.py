@@ -120,6 +120,10 @@ def showme(dset, z):
         components_negative = np.transpose(np.squeeze(dset['components_negative'][slices]), (1, 0))
         a.imshow(components_negative, cmap=cmap, interpolation='nearest', extent=true_label_extent)
         a.set_title('components_negative:\ntrue components with zero-moat and 1s', fontsize=title_font_size)
+    elif 'error_scale_slice' in dset:
+        error_scale_slice = np.transpose(np.squeeze(dset['error_scale_slice'][(slice(0, 3),) + slices]), (2, 1, 0))
+        a.imshow(error_scale_slice, cmap=cmap, interpolation='nearest', extent=true_label_extent)
+        a.set_title('error_scale_slice', fontsize=title_font_size)
     a.axis('off')
 
     a = ax[2, 2]

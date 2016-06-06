@@ -818,6 +818,10 @@ def train(solver, test_net, data_arrays, train_data_arrays, options):
             except UnboundLocalError:
                 # variables weren't declared, because malis isn't being computed
                 pass
+            try:
+                dataset_to_show['error_scale_slice'] = error_scale_slice
+            except UnboundLocalError:
+                pass
             assert dataset_to_show['data'].shape == tuple(input_dims), dataset_to_show['data'].shape
             assert dataset_to_show['label'].shape == (3,) + tuple(output_dims), dataset_to_show['label'].shape
             assert dataset_to_show['components'].shape == tuple(output_dims), dataset_to_show['components'].shape
