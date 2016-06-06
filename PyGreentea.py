@@ -783,6 +783,8 @@ def train(solver, test_net, data_arrays, train_data_arrays, options):
                 w_pos = w_pos / (2.0 * frac_pos)
                 w_neg = w_neg / (2.0 * (1.0 - frac_pos))
             error_scale_slice = scale_errors(label_slice, w_neg, w_pos)
+            if mask_slice is not None:
+                error_scale_slice *= mask_slice
             net_io.setInputs([data_slice, label_slice, error_scale_slice])
         elif options.loss_function == 'softmax':
             # These are the affinity edge values
