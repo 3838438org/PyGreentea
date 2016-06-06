@@ -1,3 +1,5 @@
+import json
+
 import numpy as np
 
 from dvision import dtype_mappings, dvid_requester
@@ -20,7 +22,10 @@ class DVIDDataInstance(object):
             url = self.url_prefix + 'info'
             response = dvid_requester.get(url)
             if not response.ok: print(response.url, response.text)
-            self._info_cache = response.json()
+            try:
+                self._info_cache = response.json()
+            except:
+                pass
         return self._info_cache
 
     @property

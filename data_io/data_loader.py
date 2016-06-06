@@ -143,7 +143,7 @@ class DataLoader(object):
             processes=n_workers,
             initializer=self._initialize_pool,
             initargs=(),
-            maxtasksperchild=10
+            maxtasksperchild=1000
         )
         self.ready_shared_datasets = []
         return
