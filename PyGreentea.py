@@ -99,7 +99,6 @@ import malis as malis
 
 # Wrapper around a networks set_input_arrays to prevent memory leaks of locked up arrays
 class NetInputWrapper:
-    
     def __init__(self, net, shapes):
         self.net = net
         self.shapes = shapes
@@ -107,24 +106,18 @@ class NetInputWrapper:
         self.inputs = []
         self.input_keys = ['data', 'label', 'scale', 'components', 'nhood']
         self.input_layers = []
-        
         for i in range(0, len(self.input_keys)):
             if (self.input_keys[i] in self.net.layers_dict):
                 self.input_layers += [self.net.layers_dict[self.input_keys[i]]]
-        
-        print (len(self.input_layers))
-        
         for i in range(0,len(shapes)):
             # Pre-allocate arrays that will persist with the network
             self.inputs += [np.zeros(tuple(self.shapes[i]), dtype=float32)]
-                
-        print (len(shapes))
-        
-    def setInputs(self, data):      
+
+    def setInputs(self, data):
         for i in range(0,len(self.shapes)):
             np.copyto(self.inputs[i], np.ascontiguousarray(data[i]).astype(float32))
             self.net.set_layer_input_arrays(self.input_layers[i], self.inputs[i], self.dummy_slice)
-                  
+
 
 # Transfer network weights from one network to another
 def net_weight_transfer(dst_net, src_net):
@@ -693,6 +686,10 @@ def train(solver, test_net, data_arrays, train_data_arrays, options):
                 training_data_loader.start_refreshing_shared_dataset(i, wait=True)
     else:
         using_data_loader = False
+
+    if DEBUG:
+        for key in net.blobs.keys():
+            print(key, net.blobs[key].data.shape)
 
     # Loop from current iteration to last iteration
     for i in range(solver.iter, solver.max_iter):
