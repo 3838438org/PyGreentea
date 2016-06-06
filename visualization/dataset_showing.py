@@ -108,8 +108,9 @@ def showme(dset, z):
     if 'mask' in dset:
         mask_slices = slices
         mask = np.transpose(np.squeeze(dset['mask'][mask_slices]), (1, 0))
-        a.imshow(mask, cmap=plt.cm.get_cmap('gray'), interpolation='nearest', extent=true_label_extent)
-        a.set_title('mask\n(0 means excluded)', fontsize=title_font_size)
+        mask_mean = np.mean(mask)
+        a.imshow(mask, cmap='gray', vmin=0, vmax=1, interpolation='nearest', extent=true_label_extent)
+        a.set_title('mask (0 means excluded)\nMean value: %07.5f' % mask_mean, fontsize=title_font_size)
     a.axis('off')
 
     a = ax[2, 1]
