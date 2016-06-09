@@ -2,6 +2,7 @@ from __future__ import print_function
 
 import gc
 import inspect
+import logging
 import math
 import os
 import sys
@@ -413,6 +414,10 @@ def generate_dataset_offsets_for_processing(net, data_arrays, process_borders):
 
 
 def process(net, data_arrays, shapes=None, net_io=None, zero_pad_source_data=True, target_arrays=None):
+    if DEBUG:
+        data_io.logger.setLevel(logging.DEBUG)
+    else:
+        data_io.logger.setLevel(logging.INFO)
     input_dims, output_dims, input_padding = get_spatial_io_dims(net)
     fmaps_in, fmaps_out = get_fmap_io_dims(net)
     dims = len(output_dims)
@@ -631,6 +636,10 @@ class MakeDatasetOffset(object):
 
 
 def train(solver, test_net, data_arrays, train_data_arrays, options):
+    if DEBUG:
+        data_io.logger.setLevel(logging.DEBUG)
+    else:
+        data_io.logger.setLevel(logging.INFO)
     caffe.select_device(options.train_device, False)
 
     net = solver.net

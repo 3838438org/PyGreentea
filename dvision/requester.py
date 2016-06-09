@@ -1,11 +1,5 @@
-import multiprocessing
-
 import requests
 from requests.adapters import HTTPAdapter
-
-
-logger = multiprocessing.log_to_stderr()
-logger.setLevel(20)
 
 
 class DVIDRequester(object):

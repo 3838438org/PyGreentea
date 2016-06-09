@@ -12,7 +12,7 @@ import malis
 import numpy as np
 from functools import reduce
 
-import PyGreentea as pygt
+from data_io import logger
 from .dataset_reading import get_numpy_dataset, reopen_dataset
 from .util import get_slices_from_dataset_offset
 
@@ -23,10 +23,6 @@ from .util import get_slices_from_dataset_offset
 * process()
   * getting batches from a dataset, specified with offset and input size
 '''
-
-if pygt.DEBUG:
-    logger = multiprocessing.log_to_stderr()
-    logger.setLevel(multiprocessing.SUBDEBUG)
 
 
 def update_shared_dataset(index_of_shared, index_of_which_dataset, input_slice,
@@ -51,36 +47,33 @@ def update_shared_dataset(index_of_shared, index_of_which_dataset, input_slice,
                         output_shape = None
                     input_slice, output_slice = get_slices_from_dataset_offset(
                         offset, input_shape, output_shape)
-                    if pygt.DEBUG:
-                        print(multiprocessing.current_process().name,
-                              "Skipping: dataset", index_of_which_dataset,
-                              "output_slice", output_slice,
-                              "mask %06.4f" % mask_fraction_of_this_batch)
+                    message = "Skipping source dataset #{0} at output_slice {1} with mask {2}".format(
+                        index_of_which_dataset,
+                        output_slice,
+                        "%06.4f" % mask_fraction_of_this_batch)
+                    logger.debug(message)
                 else:
                     return "DataLoader worker encountered a 100% masked" \
                            "datachunk, but doesn't know how to replace it."
             else:
-                if pygt.DEBUG:
-                    print(multiprocessing.current_process().name,
-                          "Using: dataset", index_of_which_dataset,
-                          "output_slice", output_slice,
-                          "mask %06.4f" % mask_fraction_of_this_batch)
+                message = "Using dataset #{0} at output_slice {1} with mask {2}".format(
+                    index_of_which_dataset,
+                    output_slice,
+                    "%06.4f" % mask_fraction_of_this_batch)
+                logger.debug(message)
                 dataset_is_ready = True
         else:
             dataset_is_ready = True
     for key in shared_dataset:
         source_array = dataset_numpy[key].astype(dtypes[key])
         target_mp_array = shared_dataset[key]
-        if pygt.DEBUG:
-            print(multiprocessing.current_process().name,
-                  "storing dataset_numpy['", key, "']",
-                  "with dtype", source_array.dtype,
-                  "shape", source_array.shape)
+        message = "storing dataset_numpy['{key}'] ({dt}, {shape})".format(
+            key=key, dt=source_array.dtype, shape=source_array.shape)
+        logger.debug(message)
         target_mp_array[:] = source_array.flatten()
-    if pygt.DEBUG:
-        print(multiprocessing.current_process().name,
-              "Refreshing DataLoader dataset #", index_of_shared,
-              "took %05.2fs" % (time.time() - start_time))
+    message = "Refreshing DataLoader dataset #{0} took {1}".format(
+        index_of_shared, "%05.2fs" % (time.time() - start_time))
+    logger.debug(message)
     return
 
 
@@ -125,8 +118,7 @@ class DataLoader(object):
         sizes = dict()
         for key, shape in self.shapes.iteritems():
             sizes[key] = reduce(mul, shape)
-        if pygt.DEBUG:
-            print("sizes: ", sizes)
+        logger.debug("sizes: {}".format(sizes))
         self.shared_datasets = []
         for n in range(size):
             shared_dataset = dict()
@@ -134,9 +126,9 @@ class DataLoader(object):
                 size = sizes[key]
                 dtype = self.dtypes[key]
                 ctype = type(np.ctypeslib.as_ctypes(dtype(0)))
-                if pygt.DEBUG:
-                    print("creating {key}'s multiprocessing.Array with "
-                          "ctype {c} and size {s}".format(key=key, c=ctype, s=size))
+                message = "creating {key}'s multiprocessing.Array with ctype {c} "\
+                          "and size {s}".format(key=key, c=ctype, s=size)
+                logger.debug(message)
                 shared_dataset[key] = multiprocessing.Array(ctype, size, lock=False)
             self.shared_datasets.append(shared_dataset)
         self.pool = multiprocessing.Pool(
@@ -173,8 +165,6 @@ class DataLoader(object):
             time.sleep(0.01)
         if wait_start_time is not None:
             print("Waited for dataset for %05.2fs" % (time.time() - wait_start_time))
-        if pygt.DEBUG:
-            print("Workers alive:", sum([proc.is_alive() for proc in self.pool._pool]))
         dataset_metadata = self.ready_shared_datasets.pop(0)
         index_of_shared_dataset = dataset_metadata['shared']
         index_of_given_dataset = dataset_metadata['real']
@@ -185,8 +175,6 @@ class DataLoader(object):
         for key in shared_dataset:
             dtype = self.dtypes[key]
             new_dataset[key] = np.frombuffer(shared_dataset[key], dtype)
-            if pygt.DEBUG:
-                print(key, new_dataset[key].shape, self.shapes[key])
             new_dataset[key] = new_dataset[key].reshape(self.shapes[key])
             if copy:
                 new_dataset[key] = new_dataset[key].copy()
@@ -206,8 +194,9 @@ class DataLoader(object):
                 raise ValueError("Data loader wasn't given offset & which dataset to refresh, "
                                  "but can't make offsets itself.")
             dataset_index, offset = self.make_dataset_offset(self.datasets)
-            if pygt.DEBUG:
-                print("DataLoader decided to load dataset #", dataset_index, "at offset", offset)
+            message = "DataLoader decided to load dataset #{0} at offset {1}"\
+                .format(dataset_index, offset)
+            logger.debug(message)
         input_slice, output_slice = get_slices_from_dataset_offset(offset, self.input_shape, self.output_shape)
         dataset_metadata = dict(real=dataset_index, shared=shared_dataset_index, offset=offset)
 
@@ -239,37 +228,3 @@ class DataLoader(object):
     def destroy(self):
         self.pool.terminate()
         return
-
-
-if __name__ == '__main__':
-    path = '/groups/turaga/home/turagas/data/FlyEM/fibsem_medulla_7col/'
-    datasets = []
-    for dname in ['trvol-250-1-h5', 'trvol-250-2-h5']:
-        datasets.append(
-            dict({
-                'name': dname,
-                'data': h5py.File(join(path, dname, 'im_uint8.h5'), 'r')['main'],
-                'components': h5py.File(join(path, dname, 'groundtruth_seg_thick.h5'), 'r')['main'],
-                'nhood': malis.mknhood3d(),
-                'transform': dict({'scale': (0.8, 1.2), 'shift': (-0.2, 0.2)})
-            })
-        )
-    queue_size = 1
-    q = DataLoader(queue_size,
-                   datasets=datasets,
-                   input_shape=(80, 80, 80),
-                   output_shape=(60, 60, 60),
-                   n_workers=1
-                   )
-    for j in range(len(datasets)):
-        i = 0  # index of shared dataset to use
-        shared_dataset_index, async_result = q.start_refreshing_shared_dataset(i, (15, 25, 35), j, wait=True)
-        print("{}'s async_result.get(): {}".format(datasets[j]['name'], async_result.get()))
-        dataset_result, index_of_shared_dataset = q.get_dataset(copy=False)
-        print('start - ********************************************************************************')
-        for key, value in dataset_result.iteritems():
-            try:
-                print(key, value.dtype, value.shape, type(value), value[0, 5, 50, 20:30], np.mean(value))
-            except:
-                print(key, value)
-        print('end   - ********************************************************************************')

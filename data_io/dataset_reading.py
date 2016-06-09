@@ -11,22 +11,18 @@ import numpy as np
 from libdvid.voxels import VoxelsAccessor
 from scipy import ndimage
 
-import PyGreentea as pygt
+from data_io import logger
 import dvision
 from dvision.component_filtering import get_good_components
 from util import get_zero_padded_array_slice, replace_array_except_whitelist
 
 
 def get_numpy_dataset(original_dataset, input_slice, output_slice, transform):
-    if pygt.DEBUG:
-        logger = multiprocessing.log_to_stderr()
-        logger.setLevel(multiprocessing.SUBDEBUG)
     dataset_numpy = dict()
     n_spatial_dimensions = len(input_slice)
     input_data_slices = [slice(0, l) for l in original_dataset['data'].shape]
     input_data_slices[-n_spatial_dimensions:] = input_slice
-    if pygt.DEBUG:
-        print(multiprocessing.current_process().name, "input_data_slices:", input_data_slices)
+    logger.debug("input_data_slices: {}".format(input_data_slices))
     original_data_slice = get_zero_padded_array_slice(original_dataset['data'], input_data_slices)
     data_slice = np.array(original_data_slice, dtype=np.float32)
     if original_data_slice.dtype.kind == 'i' or np.max(data_slice) > 1:
@@ -37,8 +33,7 @@ def get_numpy_dataset(original_dataset, input_slice, output_slice, transform):
             data_slice = 0.5 + (data_slice - 0.5) * np.random.uniform(low=lo, high=hi)
             lo, hi = original_dataset['transform']['shift']
             data_slice = data_slice + np.random.uniform(low=lo, high=hi)
-        elif pygt.DEBUG:
-            print(multiprocessing.current_process().name, "WARNING: source data doesn't have 'transform' attribute.")
+        logger.debug("source data doesn't have 'transform' attribute.")
     if data_slice.ndim == n_spatial_dimensions:
         new_shape = (1,) + data_slice.shape
         data_slice = data_slice.reshape(new_shape)
@@ -48,8 +43,7 @@ def get_numpy_dataset(original_dataset, input_slice, output_slice, transform):
         output_shape = tuple([slice_.stop - slice_.start for slice_ in output_slice])
         component_slices = [slice(0, l) for l in original_dataset['components'].shape]
         component_slices[-n_spatial_dimensions:] = output_slice
-        if pygt.DEBUG:
-            print(multiprocessing.current_process().name, "component_slices:", component_slices)
+        logger.debug("component_slices: {}".format(component_slices))
         components_array = get_zero_padded_array_slice(original_dataset['components'], component_slices)
         source_class = type(original_dataset['components'])
         components_are_from_dvid = source_class in (VoxelsAccessor, dvision.DVIDDataInstance)
@@ -57,11 +51,9 @@ def get_numpy_dataset(original_dataset, input_slice, output_slice, transform):
         if exclude_strings and components_are_from_dvid:
             dvid_uuid = original_dataset['components'].uuid
             components_to_keep = get_good_components(dvid_uuid, exclude_strings)
-            if pygt.DEBUG:
-                print(multiprocessing.current_process().name, "components before:", list(np.unique(components_array)))
+            logger.debug("components before: {}".format(list(np.unique(components_array))))
             components_array = replace_array_except_whitelist(components_array, 0, components_to_keep)
-            if pygt.DEBUG:
-                print(multiprocessing.current_process().name, "components after:", list(np.unique(components_array)))
+            logger.debug("components after: {}".format(list(np.unique(components_array))))
         if components_array.ndim == n_spatial_dimensions:
             new_shape = (1,) + components_array.shape
             components_array = components_array.reshape(new_shape)
@@ -73,8 +65,7 @@ def get_numpy_dataset(original_dataset, input_slice, output_slice, transform):
             dataset_numpy['label'] = get_zero_padded_array_slice(original_dataset['label'], label_slices)
         else:
             # compute affinities from components
-            if pygt.DEBUG:
-                warnings.warn("Computing affinity labels because 'label' wasn't provided in data source.", UserWarning)
+            logger.debug("Computing affinity labels because 'label' wasn't provided in data source.")
             components_for_malis = dataset_numpy['components']
             if dataset_numpy['components'].ndim != n_spatial_dimensions:
                 components_for_malis = components_for_malis.reshape(output_shape)
@@ -93,13 +84,11 @@ def get_numpy_dataset(original_dataset, input_slice, output_slice, transform):
             if components_are_from_dvid:
                 # infer mask values: 1 if component is nonzero, 0 otherwise
                 mask_array = np.not_equal(dataset_numpy['components'], 0)
-                if pygt.DEBUG:
-                    warnings.warn("No mask provided. Setting to 1 where components != 0.", UserWarning)
+                logger.debug("No mask provided. Setting to 1 where components != 0.")
             else:
                 # assume no masking
                 mask_array = np.ones_like(dataset_numpy['components'], dtype=np.uint8)
-                if pygt.DEBUG:
-                    warnings.warn("No mask provided. Setting to 1 where outputs exist.", UserWarning)
+                logger.debug("No mask provided. Setting to 1 where outputs exist.")
         mask_dilation_steps = original_dataset.get('mask_dilation_steps', 1)
         if mask_dilation_steps:
             mask_array = ndimage.binary_dilation(mask_array, iterations=mask_dilation_steps)
@@ -140,13 +129,11 @@ def reopen_h5py_dataset(dataset):
             h5_dataset_key = dataset_value.name
             array_view = get_array_view_of_hdf5_dataset(h5_file_path, h5_dataset_key)
             opened_dataset[key] = array_view
-            if pygt.DEBUG:
-                print(multiprocessing.current_process().name, 'opened', h5_dataset_key, 'in', h5_file_path)
+            logger.debug('opened {} in {}'.format(h5_dataset_key, h5_file_path))
     yield opened_dataset
     for key in opened_dataset:
         if type(opened_dataset[key]) is h5py.Dataset:
-            if pygt.DEBUG:
-                print(multiprocessing.current_process().name, 'closing', opened_dataset[key].name, 'in', opened_dataset[key].file.filename)
+            logger.debug('closing {} in {}'.format(opened_dataset[key].name, opened_dataset[key].file.filename))
             opened_dataset[key].file.close()
 
 
@@ -161,8 +148,7 @@ def reopen_libdvid_voxelsaccessor_dataset(dataset):
             data_name = dataset_value.data_name
             new_voxels_accessor = VoxelsAccessor(hostname, uuid, data_name)
             opened_dataset[key] = new_voxels_accessor
-            if pygt.DEBUG:
-                print(multiprocessing.current_process().name, 'opened', data_name, 'from', uuid, "at", hostname)
+            logger.debug('opened {} at {} from {}'.format(data_name, uuid, hostname))
     yield opened_dataset
 
 
