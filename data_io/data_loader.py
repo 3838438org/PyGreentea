@@ -5,10 +5,7 @@ import sys
 import time
 import traceback
 from operator import mul
-from os.path import join
 
-import h5py
-import malis
 import numpy as np
 from functools import reduce
 

@@ -1,5 +1,3 @@
-import json
-
 import numpy as np
 
 from dvision import dtype_mappings, dvid_requester
@@ -33,9 +31,9 @@ class DVIDDataInstance(object):
         typename = self.info["Base"]["TypeName"]
         dtype = dtype_mappings.get(typename, None)
         if dtype is None:
-            error_message = "Unrecognized typename '{tn}'. "\
-                            "Not sure how to parse that into a numpy array."\
-                            .format(tn=typename)
+            error_message = "Unrecognized typename '{tn}'. " \
+                            "Not sure how to parse that into a numpy array." \
+                .format(tn=typename)
             raise ValueError(error_message)
         return dtype
 
@@ -66,14 +64,15 @@ class DVIDDataInstance(object):
         array_as_string = array_np.tostring()
         response = dvid_requester.post(url, data=array_as_string)
         assert response.ok, response.content
-        return 
+        return
 
     def __getitem__(self, slices):
         def as_slice(s):
-            if type(s) is slice: 
+            if type(s) is slice:
                 return s
-            else: 
+            else:
                 return slice(s, s + 1, 1)
+
         slices = tuple(map(as_slice, slices))
         shape_of_slices = tuple([s.stop - s.start for s in slices])
         n_spatial_dims = len(slices)
@@ -82,7 +81,7 @@ class DVIDDataInstance(object):
         shape_str = '_'.join(str(s) for s in shape)
         offset = [s.start for s in slices]
         offset_str = '_'.join([str(o) for o in offset])
-        url = self.url_prefix + 'raw/'+ axes_str + '/' + shape_str + '/' + offset_str + '/nD'
+        url = self.url_prefix + 'raw/' + axes_str + '/' + shape_str + '/' + offset_str + '/nD'
         response = dvid_requester.get(url)
         dvid_octet_stream = response.content
         array = np.fromstring(dvid_octet_stream, dtype=self.dtype)
@@ -106,6 +105,6 @@ class DVIDDataInstanceImageURLGetter(object):
         offset = [s.start for s in slices]
         offset_str = '_'.join([str(o) for o in offset])
         # http://slowpoke1:22201/api/node/d2bbf3e3d36541feb8f4baa9b86a73a2/tstvol_2_image/raw/0_1/520_520/0_0_100
-        url = self.dvid_data_instance.url_prefix + 'raw/'+ axes_str + '/' + \
+        url = self.dvid_data_instance.url_prefix + 'raw/' + axes_str + '/' + \
               + shape_str + '/' + offset_str + '/' + self.image_file_type
         return url

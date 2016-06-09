@@ -11,9 +11,9 @@ class DVIDConnection(object):
 
     def create_repo(self, name=None, description=None):
         repo_metadata = dict()
-        if name: 
+        if name:
             repo_metadata['alias'] = name
-        if description: 
+        if description:
             repo_metadata['description'] = description
         response = self.dvid_requester.post(
             url=self.url_prefix + 'repos',

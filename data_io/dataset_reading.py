@@ -1,12 +1,11 @@
 from __future__ import print_function
 
+import malis
 import multiprocessing
-import os
 import warnings
 from contextlib import contextmanager
 
 import h5py
-import malis
 import numpy as np
 from libdvid.voxels import VoxelsAccessor
 from scipy import ndimage
@@ -14,7 +13,7 @@ from scipy import ndimage
 from data_io import logger
 import dvision
 from dvision.component_filtering import get_good_components
-from util import get_zero_padded_array_slice, replace_array_except_whitelist
+from .util import get_zero_padded_array_slice, replace_array_except_whitelist
 
 
 def get_numpy_dataset(original_dataset, input_slice, output_slice, transform):

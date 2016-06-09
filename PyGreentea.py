@@ -81,7 +81,7 @@ if __name__ == "__main__":
     
     print(bcolors.OKGREEN + ("==== PYGT: Setup finished ====").ljust(80,"=") + bcolors.ENDC)
     sys.exit(0)
-else: 
+else:
     import data_io
 
 
@@ -132,7 +132,7 @@ def net_weight_transfer(dst_net, src_net):
             # Copy weights + bias
             for i in range(0, min(len(dst_net.params[layer_key]), len(src_net.params[layer_key]))):
                 np.copyto(dst_net.params[layer_key][i].data, src_net.params[layer_key][i].data)
-        
+
 
 def normalize(dataset, newmin=-1, newmax=1):
     maxval = dataset
@@ -152,7 +152,8 @@ def getSolverStates(prefix):
         if(prefix+'_iter_' in file and '.solverstate' in file):
             solverstates += [(int(file[len(prefix+'_iter_'):-len('.solverstate')]),file)]
     return sorted(solverstates)
-            
+
+
 def getCaffeModels(prefix):
     files = [f for f in os.listdir('.') if os.path.isfile(f)]
     print(files)
@@ -222,7 +223,7 @@ def augment_data_simple(dataset):
                         dataset[-1]['swapxy']=swapxy
     return dataset
 
-    
+
 def augment_data_elastic(dataset,ncopy_per_dset):
     dsetout = []
     nset = len(dataset)
@@ -266,7 +267,7 @@ def augment_data_elastic(dataset,ncopy_per_dset):
 
     return dataset
 
-    
+
 def slice_data(data, offsets, sizes):
     if (len(offsets) == 1):
         return data[offsets[0]:offsets[0] + sizes[0]]
@@ -305,7 +306,8 @@ def sanity_check_net_blobs(net):
         print('Failure: %s, first at %d, mean %3.5f' % (failure,first,np.mean(data)))
         if failure:
             break
-        
+
+
 def dump_feature_maps(net, folder):
     for key in net.blobs.keys():
         dst = net.blobs[key]
@@ -317,47 +319,36 @@ def dump_feature_maps(net, folder):
             # print(np.uint8(norm[f,:]).shape)
             writer.write(outfile, np.uint8(norm[f,:]))
             outfile.close()
-                
-        
-def get_net_input_specs(net, test_blobs = ['data', 'label', 'scale', 'label_affinity', 'affinty_edges']):
-    
+
+
+def get_net_input_specs(net, test_blobs=['data', 'label', 'scale', 'label_affinity', 'affinty_edges']):
     shapes = []
-    
     # The order of the inputs is strict in our network types
     for blob in test_blobs:
         if (blob in net.blobs):
             shapes += [[blob, np.shape(net.blobs[blob].data)]]
-        
     return shapes
+
 
 def get_spatial_io_dims(net):
     out_primary = 'label'
-    
     if ('prob' in net.blobs):
         out_primary = 'prob'
-    
     shapes = get_net_input_specs(net, test_blobs=['data', out_primary])
-        
     dims = len(shapes[0][1]) - 2
-    print(dims)
-    
     input_dims = list(shapes[0][1])[2:2+dims]
     output_dims = list(shapes[1][1])[2:2+dims]
     padding = [input_dims[i]-output_dims[i] for i in range(0,dims)]
-    
     return input_dims, output_dims, padding
+
 
 def get_fmap_io_dims(net):
     out_primary = 'label'
-    
     if ('prob' in net.blobs):
         out_primary = 'prob'
-    
     shapes = get_net_input_specs(net, test_blobs=['data', out_primary])
-    
     input_fmaps = list(shapes[0][1])[1]
     output_fmaps = list(shapes[1][1])[1]
-    
     return input_fmaps, output_fmaps
 
 
