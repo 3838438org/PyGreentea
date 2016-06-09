@@ -13,7 +13,7 @@ from scipy import ndimage
 
 import PyGreentea as pygt
 import dvision
-from dvid_connectivity import get_good_components
+from dvision.component_filtering import get_good_components
 from util import get_zero_padded_array_slice, replace_array_except_whitelist
 
 
