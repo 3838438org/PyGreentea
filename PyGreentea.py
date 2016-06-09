@@ -86,10 +86,13 @@ else:
 
 
 # Import Caffe
-caffe_parent_path = os.path.dirname(os.path.dirname(__file__))
-caffe_path = os.path.join(caffe_parent_path, 'caffe_gt', 'python')
-sys.path.append(caffe_path)
-import caffe as caffe
+try:
+    import caffe
+except ImportError:
+    caffe_parent_path = os.path.dirname(os.path.dirname(__file__))
+    caffe_path = os.path.join(caffe_parent_path, 'caffe_gt', 'python')
+    sys.path.append(caffe_path)
+    import caffe
 
 # Import the network generator
 import network_generator as netgen
