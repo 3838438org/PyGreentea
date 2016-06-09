@@ -7,13 +7,21 @@ from contextlib import contextmanager
 
 import h5py
 import numpy as np
-from libdvid.voxels import VoxelsAccessor
 from scipy import ndimage
 
 from data_io import logger
 import dvision
 from dvision.component_filtering import get_good_components
 from .util import get_zero_padded_array_slice, replace_array_except_whitelist
+
+
+dvid_classes = set()
+dvid_classes.add(dvision.DVIDDataInstance)
+try:
+    from libdvid.voxels import VoxelsAccessor
+    dvid_classes.add(VoxelsAccessor)
+except ImportError:
+    pass
 
 
 def get_numpy_dataset(original_dataset, input_slice, output_slice, transform):
@@ -45,7 +53,7 @@ def get_numpy_dataset(original_dataset, input_slice, output_slice, transform):
         logger.debug("component_slices: {}".format(component_slices))
         components_array = get_zero_padded_array_slice(original_dataset['components'], component_slices)
         source_class = type(original_dataset['components'])
-        components_are_from_dvid = source_class in (VoxelsAccessor, dvision.DVIDDataInstance)
+        components_are_from_dvid = source_class in dvid_classes
         exclude_strings = original_dataset.get('body_names_to_exclude', [])
         if exclude_strings and components_are_from_dvid:
             dvid_uuid = original_dataset['components'].uuid
