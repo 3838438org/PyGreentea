@@ -664,6 +664,11 @@ def train(solver, test_net, data_arrays, train_data_arrays, options):
     if (('nhood' in data_arrays[0]) and (options.loss_function == 'malis')):
         shapes += [[1,1] + list(np.shape(data_arrays[0]['nhood']))]
     net_io = NetInputWrapper(net, shapes)
+
+    if DEBUG:
+        for key in net.blobs.keys():
+            print(key, net.blobs[key].data.shape)
+
     make_dataset_offset = MakeDatasetOffset(input_dims, output_dims)
     if data_io.data_loader_should_be_used_with(data_arrays):
         using_data_loader = True
@@ -689,10 +694,6 @@ def train(solver, test_net, data_arrays, train_data_arrays, options):
                 training_data_loader.start_refreshing_shared_dataset(i, wait=True)
     else:
         using_data_loader = False
-
-    if DEBUG:
-        for key in net.blobs.keys():
-            print(key, net.blobs[key].data.shape)
 
     # Loop from current iteration to last iteration
     for i in range(solver.iter, solver.max_iter):
@@ -764,12 +765,6 @@ def train(solver, test_net, data_arrays, train_data_arrays, options):
                 # assert mask_inverse.dtype == components_slice.dtype
                 components_negative_slice = components_slice + mask_inverse
             components_positive_slice = components_slice
-            # if mean_mask < 1:
-            #     diffs = components_negative_slice == components_positive_slice
-            #     print("neg/pos diff freq:", np.mean(diffs), mean_mask)
-            #     # if some stuff is masked, then differences should exist between positive and negative
-            #     assert not np.array_equal(components_negative_slice, components_positive_slice), \
-            #         (mean_mask, np.mean(components_negative_slice), np.mean(components_positive_slice))
             components_malis_slice = np.concatenate(
                 (components_negative_slice, components_positive_slice),
                 axis=0)
