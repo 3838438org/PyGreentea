@@ -1,11 +1,9 @@
 # runtime
-#PyGreentea  # not on pypi
 #malis  # not on pypi
 h5py
 numpy
 scipy
 pypng
-caffe
 requests
 
 # test
