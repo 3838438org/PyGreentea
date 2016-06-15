@@ -1,3 +1,5 @@
+from dvision import logger
+
 import requests
 from requests.adapters import HTTPAdapter
 
@@ -8,6 +10,7 @@ class DVIDRequester(object):
         self.session = requests.Session()
 
     def get(self, *args, **kwargs):
+        logger.debug("Getting url " + repr(args))
         with requests.Session() as session:
             adapter = HTTPAdapter(pool_connections=1, pool_maxsize=1)
             session.mount('http://', adapter)

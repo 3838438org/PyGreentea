@@ -1,4 +1,3 @@
-import pprint
 import warnings
 
 from dvision import dvid_requester, DVIDDataInstance
@@ -9,21 +8,8 @@ class DVIDRepo(object):
         self.hostname = hostname
         self.port = port
         self.url_prefix = 'http://' + hostname + ':' + str(port) + '/api/'
-        if not root_uuid:
-            root_uuid = self._create_repo()
         self.root_uuid = root_uuid
         return
-
-    def _create_repo(self):
-        response = dvid_requester.post(
-            url=self.url_prefix + 'repos',
-            json=dict()
-        )
-        assert response.ok
-        pprint.pprint(response.headers)
-        pprint.pprint(response.json())
-        root_uuid = response.json()['root']
-        return root_uuid
 
     def create_data_instance(self, name, typename):
         json = dict(typename=typename, dataname=name)

@@ -1,6 +1,6 @@
 import numpy as np
 
-from dvision import dtype_mappings, dvid_requester
+from dvision import dtype_mappings, dvid_requester, logger
 
 
 class DVIDDataInstance(object):
