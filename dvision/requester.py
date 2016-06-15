@@ -14,7 +14,11 @@ class DVIDRequester(object):
         with requests.Session() as session:
             adapter = HTTPAdapter(pool_connections=1, pool_maxsize=1)
             session.mount('http://', adapter)
-            return session.get(*args, **kwargs)
+            response = session.get(*args, **kwargs)
+            if response.ok:
+                return response
+            else:
+                raise Exception("Bad response: {}".format(response.text))
 
     def post(self, *args, **kwargs):
         url_args = list(args) + [kwargs.get('url', '')]
@@ -22,7 +26,11 @@ class DVIDRequester(object):
                 any([hostname in url_arg for hostname in self.whitelist])
                 for url_arg in url_args])
         if hostname_is_ok:
-            return self.session.post(*args, **kwargs)
+            response = self.session.post(*args, **kwargs)
+            if response.ok:
+                return response
+            else:
+                raise Exception("Bad response: {}".format(response.text))
         else:
             raise ValueError("posting to servers other than {wl} not allowed" \
                              "you requested {url_args}" \
