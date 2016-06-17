@@ -11,6 +11,9 @@ import time
 import warnings
 
 import h5py
+import matplotlib
+matplotlib.use('Agg')
+import matplotlib.pyplot as plt
 import numpy as np
 import png
 from scipy import io
@@ -787,21 +790,23 @@ def train(solver, test_net, data_arrays, train_data_arrays, options):
         loss = solver.step(1)  # Single step
         if SAVE_IMAGES:
             dataset_to_show = dict()
-            net_weight_transfer(test_net, solver.net)
-            test_net_shapes = [[1, fmaps_in] + input_dims]
-            test_net_io = NetInputWrapper(test_net, test_net_shapes)
-            test_net_io.setInputs([data_slice])
-            test_net_io.net.forward()
-            net_outputs = test_net_io.net.blobs['prob']
-            affinity_prediction = net_outputs.data[0].copy()
-            dataset_to_show['pred'] = affinity_prediction
+            net_prediction_shape = (1, fmaps_out,) + tuple(output_dims)
+            prediction = np.zeros(net_prediction_shape, np.float32)
+            for blob_key in reversed(solver.net.blobs.keys()):
+                try:
+                    blob_shape = solver.net.blobs[blob_key].data.shape
+                except:
+                    blob_shape = None
+                if blob_shape == net_prediction_shape:
+                    prediction = solver.net.blobs[blob_key].data.copy()
+                    break  # stop checking blobs
+            dataset_to_show['pred'] = prediction.reshape((fmaps_out,) + tuple(output_dims))
             # import zwatershed
             # s = zwatershed.zwatershed(affinity_prediction, [50000])
             # components_prediction = s[0]
             components_prediction = np.zeros(shape=output_dims, dtype=np.int32)
             dataset_to_show['predseg'] = components_prediction
-            dataset_to_show['data'] = data_slice * (2 ** 8)
-            dataset_to_show['data'] = dataset_to_show['data'].astype(np.uint8).reshape(input_dims)
+            dataset_to_show['data'] = data_slice.reshape(input_dims)
             if components_slice is None:
                 components_slice, _ = malis.connected_components_affgraph(label_slice.astype(np.int32), dataset['nhood'])
             dataset_to_show['components'] = components_slice.reshape(output_dims)
@@ -826,6 +831,7 @@ def train(solver, test_net, data_arrays, train_data_arrays, options):
             if not os.path.exists('snapshots'):
                 os.mkdir('snapshots')
             f.savefig('snapshots/%08d.png' % i)
+            plt.close()
         while gc.collect():
             pass
         time_of_iteration = time.time() - start
