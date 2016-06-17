@@ -604,7 +604,9 @@ class MakeDatasetOffset(object):
         self.random_state = np.random.RandomState()
         
     def calculate_offset_bounds(self, dataset):
-        shape_of_source_data = dataset['data'].shape[-self.dims:]
+        shape_of_source_data = [min(d,c) for d, c in \
+                                zip(dataset['data'].shape[-self.dims:],
+                                    dataset['components'].shape[-self.dims:])]
         offset_bounds = [(0, n - i) for n, i in zip(shape_of_source_data, self.input_dims)]
         client_requested_zero_padding = dataset.get('zero_pad_inputs', False)
         net_requires_zero_padding = any([max_ < min_ for min_, max_ in offset_bounds])
