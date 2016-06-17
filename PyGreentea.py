@@ -715,8 +715,11 @@ def train(solver, test_net, data_arrays, train_data_arrays, options):
                 origin=[0] + offsets,
                 shape=[fmaps_in] + input_dims)
             label_slice = slice_data(dataset['label'], [0] + [offsets[di] + int(math.ceil(input_padding[di] / float(2))) for di in range(0, dims)], [fmaps_out] + output_dims)
-            components_slice = None
-            mask_slice = None
+            components_slice, ccSizes = malis.connected_components_affgraph(label_slice.astype(int32), dataset['nhood'])
+            components_shape = (1,) + tuple(output_dims)
+            components_slice = components_slice.reshape(components_shape)
+            mask_slice = np.ones_like(components_slice, dtype=np.uint8)
+            mask_mean = 1
             if 'transform' in dataset:
                 # transform the input
                 # assumes that the original input pixel values are scaled between (0,1)
@@ -730,31 +733,22 @@ def train(solver, test_net, data_arrays, train_data_arrays, options):
         else:
             dataset, index_of_shared_dataset = training_data_loader.get_dataset()
             data_slice = dataset['data']
-            assert data_slice.shape == (fmaps_in,) + tuple(input_dims)
             label_slice = dataset['label']
-            assert label_slice.shape == (fmaps_out,) + tuple(output_dims)
             if DEBUG:
                 print("Training with next dataset in data loader, which has offset", dataset['offset'])
             mask_slice = dataset['mask']
-            assert mask_slice.shape == (1,) + tuple(output_dims)
+            mask_mean = np.mean(mask_slice)
             components_slice = dataset['components']
-            assert components_slice.shape == (1,) + tuple(output_dims)
+        assert data_slice.shape == (fmaps_in,) + tuple(input_dims)
+        assert label_slice.shape == (fmaps_out,) + tuple(output_dims)
+        assert mask_slice.shape == (1,) + tuple(output_dims)
+        assert components_slice.shape == (1,) + tuple(output_dims)
         if DEBUG:
             print("data_slice stats: min", data_slice.min(), "mean", data_slice.mean(), "max", data_slice.max())
-            print("mask_slice.mean(): ", mask_slice.mean())
+            print("mask_mean: ", mask_mean)
         if options.loss_function == 'malis':
-            if components_slice is None:
-                components_slice, ccSizes = malis.connected_components_affgraph(label_slice.astype(int32), dataset['nhood'])
-                components_shape = (1,) + tuple(output_dims)
-                components_slice = components_slice.reshape(components_shape)
-            # nonzero_components = np.not_equal(components_slice, 0)
-            # components_slice += 1
-            # components_slice *= nonzero_components
-            mean_mask = np.mean(mask_slice)
-            if mean_mask == 1 or mask_slice is None:
+            if mask_mean == 1:
                 components_negative_slice = components_slice
-                if mask_slice is None:
-                    raise ValueError("mask not defined.")
             else:
                 '''
                 assumes that...
@@ -772,10 +766,11 @@ def train(solver, test_net, data_arrays, train_data_arrays, options):
                 axis=0)
             net_io.setInputs([data_slice, label_slice, components_malis_slice, data_arrays[0]['nhood']])
         elif options.loss_function == 'euclid':
-            label_slice_mean = label_slice.mean()
-            if 'mask' in dataset:
+            if mask_mean < 1:
                 label_slice = label_slice * mask_slice
-                label_slice_mean = label_slice.mean() / mask_slice.mean()
+                label_slice_mean = label_slice.mean() / mask_mean
+            else:
+                label_slice_mean = label_slice.mean()
             w_pos = 1.0
             w_neg = 1.0
             if options.scale_error:
@@ -783,7 +778,7 @@ def train(solver, test_net, data_arrays, train_data_arrays, options):
                 w_pos = w_pos / (2.0 * frac_pos)
                 w_neg = w_neg / (2.0 * (1.0 - frac_pos))
             error_scale_slice = scale_errors(label_slice, w_neg, w_pos)
-            if mask_slice is not None:
+            if mask_mean < 1:
                 error_scale_slice *= mask_slice
             net_io.setInputs([data_slice, label_slice, error_scale_slice])
         elif options.loss_function == 'softmax':
