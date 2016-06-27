@@ -21,6 +21,7 @@ try:
     from libdvid.voxels import VoxelsAccessor
     dvid_classes.add(VoxelsAccessor)
 except ImportError:
+    VoxelsAccessor = None
     pass
 
 
