@@ -25,86 +25,99 @@ except ImportError:
     pass
 
 
+def get_outputs(original_dataset, output_slice):
+    output_shape = tuple([slice_.stop - slice_.start for slice_ in output_slice])
+    n_spatial_dimensions = len(output_slice)
+    components_shape = (1,) + output_shape
+    mask_shape = (1,) + output_shape
+    affinities_shape = (n_spatial_dimensions,) + output_shape
+    component_slices = [slice(0, l) for l in original_dataset['components'].shape]
+    component_slices[-n_spatial_dimensions:] = output_slice
+    logger.debug("component_slices: {}".format(component_slices))
+    components_array = get_zero_padded_array_slice(original_dataset['components'], component_slices)
+    source_class = type(original_dataset['components'])
+    components_are_from_dvid = source_class in dvid_classes
+    exclude_strings = original_dataset.get('body_names_to_exclude', [])
+    if exclude_strings and components_are_from_dvid:
+        dvid_uuid = original_dataset['components'].uuid
+        components_to_keep = get_good_components(dvid_uuid, exclude_strings)
+        logger.debug("components before: {}".format(list(np.unique(components_array))))
+        components_array = replace_array_except_whitelist(components_array, 0, components_to_keep)
+        logger.debug("components after: {}".format(list(np.unique(components_array))))
+    components_array = components_array.reshape(components_shape)
+    # dataset_numpy['components'] = components_array
+    if 'label' in original_dataset:
+        label_shape = original_dataset['label'].shape
+        label_slices = [slice(0, l) for l in label_shape]
+        label_slices[-n_spatial_dimensions:] = output_slice
+        affinities_array = get_zero_padded_array_slice(original_dataset['label'], label_slices)
+        # dataset_numpy['label'] = affinities_array
+    else:
+        # compute affinities from components
+        logger.debug("Computing affinity labels because 'label' wasn't provided in data source.")
+        components_for_malis = components_array.reshape(output_shape)
+        affinities_array = malis.seg_to_affgraph(components_for_malis, original_dataset['nhood'])
+        # dataset_numpy['label'] = affinities_array
+        components_array, _ = malis.connected_components_affgraph(affinities_array.astype(np.int32), original_dataset['nhood'])
+        components_array = components_array.reshape(components_shape)
+        # should this shifting happen all the time, or only in this `else` statement?
+        nonzero_components = np.not_equal(components_array, 0)
+        components_array += 1
+        components_array *= nonzero_components
+        # dataset_numpy['components'] = components_array
+    assert affinities_array.shape == affinities_shape, \
+        "affinities_array.shape is {actual} but should be {desired}".format(
+            actual=str(affinities_array.shape), desired=str(affinities_shape))
+    if 'mask' in original_dataset:
+        mask_array = get_zero_padded_array_slice(original_dataset['mask'], output_slice)
+    else:
+        if components_are_from_dvid:
+            # infer mask values: 1 if component is nonzero, 0 otherwise
+            mask_array = np.not_equal(components_array, 0)
+            logger.debug("No mask provided. Setting to 1 where components != 0.")
+        else:
+            # assume no masking
+            mask_array = np.ones_like(components_array, dtype=np.uint8)
+            logger.debug("No mask provided. Setting to 1 where outputs exist.")
+    mask_dilation_steps = original_dataset.get('mask_dilation_steps', 1)
+    if mask_dilation_steps:
+        mask_array = ndimage.binary_dilation(mask_array, iterations=mask_dilation_steps)
+    mask_array = mask_array.astype(np.uint8)
+    mask_array = mask_array.reshape(mask_shape)
+    # dataset_numpy['mask'] = mask_array
+    return components_array, affinities_array, mask_array
+
+
 def get_numpy_dataset(original_dataset, input_slice, output_slice, transform):
     dataset_numpy = dict()
     n_spatial_dimensions = len(input_slice)
-    input_data_slices = [slice(0, l) for l in original_dataset['data'].shape]
-    input_data_slices[-n_spatial_dimensions:] = input_slice
-    logger.debug("input_data_slices: {}".format(input_data_slices))
-    original_data_slice = get_zero_padded_array_slice(original_dataset['data'], input_data_slices)
-    data_slice = np.array(original_data_slice, dtype=np.float32)
-    if original_data_slice.dtype.kind == 'i' or np.max(data_slice) > 1:
-        data_slice = data_slice / (2.0 ** 8)
+    image_slices = [slice(0, l) for l in original_dataset['data'].shape]
+    image_slices[-n_spatial_dimensions:] = input_slice
+    logger.debug("image_slices: {}".format(image_slices))
+    source_image = get_zero_padded_array_slice(original_dataset['data'], image_slices)
+    image = np.array(source_image, dtype=np.float32)
+    if source_image.dtype.kind == 'i' or np.max(image) > 1:
+        image = image / (2.0 ** 8)
     if transform:
         if 'transform' in original_dataset:
             lo, hi = original_dataset['transform']['scale']
-            data_slice = 0.5 + (data_slice - 0.5) * np.random.uniform(low=lo, high=hi)
+            image = 0.5 + (image - 0.5) * np.random.uniform(low=lo, high=hi)
             lo, hi = original_dataset['transform']['shift']
-            data_slice = data_slice + np.random.uniform(low=lo, high=hi)
-        logger.debug("source data doesn't have 'transform' attribute.")
-    if data_slice.ndim == n_spatial_dimensions:
-        new_shape = (1,) + data_slice.shape
-        data_slice = data_slice.reshape(new_shape)
-    dataset_numpy['data'] = data_slice
+            image = image + np.random.uniform(low=lo, high=hi)
+        else:
+            logger.debug("source data doesn't have 'transform' attribute.")
+    if image.ndim == n_spatial_dimensions:
+        new_shape = (1,) + image.shape
+        image = image.reshape(new_shape)
+    dataset_numpy['data'] = image
     # load outputs if desired
     if output_slice is not None:
-        output_shape = tuple([slice_.stop - slice_.start for slice_ in output_slice])
-        component_slices = [slice(0, l) for l in original_dataset['components'].shape]
-        component_slices[-n_spatial_dimensions:] = output_slice
-        logger.debug("component_slices: {}".format(component_slices))
-        components_array = get_zero_padded_array_slice(original_dataset['components'], component_slices)
-        source_class = type(original_dataset['components'])
-        components_are_from_dvid = source_class in dvid_classes
-        exclude_strings = original_dataset.get('body_names_to_exclude', [])
-        if exclude_strings and components_are_from_dvid:
-            dvid_uuid = original_dataset['components'].uuid
-            components_to_keep = get_good_components(dvid_uuid, exclude_strings)
-            logger.debug("components before: {}".format(list(np.unique(components_array))))
-            components_array = replace_array_except_whitelist(components_array, 0, components_to_keep)
-            logger.debug("components after: {}".format(list(np.unique(components_array))))
-        if components_array.ndim == n_spatial_dimensions:
-            new_shape = (1,) + components_array.shape
-            components_array = components_array.reshape(new_shape)
-        dataset_numpy['components'] = components_array
-        if 'label' in original_dataset:
-            label_shape = original_dataset['label'].shape
-            label_slices = [slice(0, l) for l in label_shape]
-            label_slices[-n_spatial_dimensions:] = output_slice
-            dataset_numpy['label'] = get_zero_padded_array_slice(original_dataset['label'], label_slices)
-        else:
-            # compute affinities from components
-            logger.debug("Computing affinity labels because 'label' wasn't provided in data source.")
-            components_for_malis = dataset_numpy['components']
-            if dataset_numpy['components'].ndim != n_spatial_dimensions:
-                components_for_malis = components_for_malis.reshape(output_shape)
-            label_slice = malis.seg_to_affgraph(components_for_malis, original_dataset['nhood'])
-            dataset_numpy['label'] = label_slice
-            components_slice, ccSizes = malis.connected_components_affgraph(label_slice.astype(np.int32), original_dataset['nhood'])
-            components_shape = (1,) + output_shape
-            components_slice = components_slice.reshape(components_shape)
-            nonzero_components = np.not_equal(components_slice, 0)
-            components_slice += 1
-            components_slice *= nonzero_components
-            dataset_numpy['components'] = components_slice
-        if 'mask' in original_dataset:
-            mask_array = get_zero_padded_array_slice(original_dataset['mask'], output_slice)
-        else:
-            if components_are_from_dvid:
-                # infer mask values: 1 if component is nonzero, 0 otherwise
-                mask_array = np.not_equal(dataset_numpy['components'], 0)
-                logger.debug("No mask provided. Setting to 1 where components != 0.")
-            else:
-                # assume no masking
-                mask_array = np.ones_like(dataset_numpy['components'], dtype=np.uint8)
-                logger.debug("No mask provided. Setting to 1 where outputs exist.")
-        mask_dilation_steps = original_dataset.get('mask_dilation_steps', 1)
-        if mask_dilation_steps:
-            mask_array = ndimage.binary_dilation(mask_array, iterations=mask_dilation_steps)
-        mask_array = mask_array.astype(np.uint8)
-        if mask_array.ndim == n_spatial_dimensions:
-            new_shape = (1,) + output_shape
-            mask_array = mask_array.reshape(new_shape)
-        dataset_numpy['mask'] = mask_array
+        dilated_output_slices = tuple([slice(s.start - 1, s.stop + 1, s.step) for s in output_slice])
+        components, affinities, mask = get_outputs(original_dataset, dilated_output_slices)
+        de_dilation_slices = (Ellipsis,) + tuple([slice(1, -1) for _ in output_slice])
+        dataset_numpy['components'] = components[de_dilation_slices]
+        dataset_numpy['label'] = affinities[de_dilation_slices]
+        dataset_numpy['mask'] = mask[de_dilation_slices]
     return dataset_numpy
 
 
