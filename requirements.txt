@@ -1,10 +1,10 @@
 # runtime
-#malis  # not on pypi
 h5py
-numpy
-scipy
+matplotlib
+numpy>=1.9
 pypng
 requests
+scipy
 
 # test
 expects
