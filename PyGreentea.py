@@ -801,10 +801,16 @@ def train(solver, test_net, data_arrays, train_data_arrays, options):
                     prediction = solver.net.blobs[blob_key].data.copy()
                     break  # stop checking blobs
             dataset_to_show['pred'] = prediction.reshape((fmaps_out,) + tuple(output_dims))
-            # import zwatershed
-            # s = zwatershed.zwatershed(affinity_prediction, [50000])
-            # components_prediction = s[0]
-            components_prediction = np.zeros(shape=output_dims, dtype=np.int32)
+            try:
+                import zwatershed
+                (s, V) = zwatershed.zwatershed_and_metrics(
+                    components_slice.reshape(output_dims).astype(np.uint32),
+                    dataset_to_show['pred'],
+                    [50000],
+                    [50000])
+                components_prediction = s[0]
+            except:
+                components_prediction = np.zeros(shape=output_dims, dtype=np.int32)
             dataset_to_show['predseg'] = components_prediction
             dataset_to_show['data'] = data_slice.reshape(input_dims)
             if components_slice is None:
