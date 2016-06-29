@@ -72,3 +72,13 @@ def replace_array_except_whitelist(array, new_value, whitelist_values):
     replaced_values = [value_mappings.get(x, new_value) for x in u]
     result = np.array(replaced_values, dtype=array.dtype)[inv].reshape(array.shape)
     return result
+
+
+def replace_infrequent_values(array, count_threshold, new_value):
+    uniques, inverse_indices, counts = np.unique(array, return_inverse=True, return_counts=True)
+    new_uniques = np.copy(uniques)
+    for idx, count in enumerate(counts):
+        if count < count_threshold:
+            new_uniques[idx] = new_value
+    result = np.array(new_uniques, dtype=array.dtype)[inverse_indices].reshape(array.shape)
+    return result
