@@ -65,4 +65,11 @@ RUN git clone -b master --depth 1 https://github.com/TuragaLab/zwatershed.git . 
 
 ENV PYTHONPATH /opt/zwatershed:$PYTHONPATH
 
+WORKDIR /opt/matplotlib
+
+RUN git clone -b v1.5.2rc2 --depth 1 https://github.com/matplotlib/matplotlib.git . && \
+    for req in $(cat requirements.txt) pydot; do pip install $req; done && \
+    python setup.py install && \
+    python tests.py
+
 WORKDIR /workspace
