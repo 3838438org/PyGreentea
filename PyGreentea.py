@@ -1,92 +1,25 @@
 from __future__ import print_function
 
 import gc
-import inspect
 import logging
 import math
 import os
 import sys
 import threading
 import time
-import warnings
 
 import h5py
+import malis
 import matplotlib
 matplotlib.use('Agg')
 import matplotlib.pyplot as plt
 import numpy as np
+from numpy import float32, int32, uint8
 import png
 from scipy import io
 
 import visualization
-
-# set this to True after importing this module to prevent multithreading
-USE_ONE_THREAD = False
-DEBUG = False
-SAVE_IMAGES = False
-
-# Determine where PyGreentea is
-pygtpath = os.path.normpath(os.path.realpath(os.path.abspath(os.path.split(inspect.getfile(inspect.currentframe()))[0])))
-
-# Determine where PyGreentea gets called from
-cmdpath = os.getcwd()
-
-sys.path.append(pygtpath)
-sys.path.append(cmdpath)
-
-
-from numpy import float32, int32, uint8
-
-# Load the configuration file
-import config
-
-class bcolors:
-    HEADER = '\033[95m'
-    OKBLUE = '\033[94m'
-    OKGREEN = '\033[92m'
-    WARNING = '\033[93m'
-    FAIL = '\033[91m'
-    ENDC = '\033[0m'
-    BOLD = '\033[1m'
-    UNDERLINE = '\033[4m'
-
-# Direct call to PyGreentea, set up everything
-if __name__ == "__main__":
-    # Load the setup module
-    import setup
-
-    if (pygtpath != cmdpath):
-        os.chdir(pygtpath)
-    
-    if (os.geteuid() != 0):
-        print(bcolors.WARNING + "PyGreentea setup should probably be executed with root privileges!" + bcolors.ENDC)
-    
-    if config.install_packages:
-        print(bcolors.HEADER + ("==== PYGT: Installing OS packages ====").ljust(80,"=") + bcolors.ENDC)
-        setup.install_dependencies()
-    
-    print(bcolors.HEADER + ("==== PYGT: Updating Caffe/Greentea repository ====").ljust(80,"=") + bcolors.ENDC)
-    setup.clone_caffe(config.caffe_path, config.clone_caffe, config.update_caffe)
-    
-    print(bcolors.HEADER + ("==== PYGT: Updating Malis repository ====").ljust(80,"=") + bcolors.ENDC)
-    setup.clone_malis(config.malis_path, config.clone_malis, config.update_malis)
-    
-    if config.compile_caffe:
-        print(bcolors.HEADER + ("==== PYGT: Compiling Caffe/Greentea ====").ljust(80,"=") + bcolors.ENDC)
-        setup.compile_caffe(config.caffe_path)
-    
-    if config.compile_malis:
-        print(bcolors.HEADER + ("==== PYGT: Compiling Malis ====").ljust(80,"=") + bcolors.ENDC)
-        setup.compile_malis(config.malis_path)
-        
-    if (pygtpath != cmdpath):
-        os.chdir(cmdpath)
-    
-    print(bcolors.OKGREEN + ("==== PYGT: Setup finished ====").ljust(80,"=") + bcolors.ENDC)
-    sys.exit(0)
-else:
-    import data_io
-
+import network_generator as netgen
 
 # Import Caffe
 try:
@@ -97,11 +30,12 @@ except ImportError:
     sys.path.append(caffe_path)
     import caffe
 
-# Import the network generator
-import network_generator as netgen
+# set this to True after importing this module to prevent multithreading
+USE_ONE_THREAD = False
+DEBUG = False
+SAVE_IMAGES = False
 
-# Import Malis
-import malis as malis
+import data_io
 
 
 # Wrapper around a networks set_input_arrays to prevent memory leaks of locked up arrays

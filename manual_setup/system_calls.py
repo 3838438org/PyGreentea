@@ -9,15 +9,15 @@ def setup_paths(caffe_path, malis_path):
     cmd_folder = os.path.realpath(os.path.abspath(os.path.split(inspect.getfile(inspect.currentframe()))[0]))
     if cmd_folder not in sys.path:
         sys.path.append(cmd_folder)
-        
+
     cmd_subfolder = os.path.realpath(os.path.abspath(os.path.join(os.path.split(inspect.getfile(inspect.currentframe()))[0], caffe_path + "/python")))
     if cmd_subfolder not in sys.path:
         sys.path.append(cmd_subfolder)
-        
+
     cmd_subfolder = os.path.realpath(os.path.abspath(os.path.join(os.path.split(inspect.getfile(inspect.currentframe()))[0], malis_path)))
     if cmd_subfolder not in sys.path:
         sys.path.append(cmd_subfolder)
-    
+
     sys.path.append(caffe_path + "/python")
     sys.path.append(malis_path + "/python")
 
@@ -74,15 +74,17 @@ def install_dependencies():
         os.system('apt-get install -y libgoogle-glog-dev libbz2-dev libxml2-dev libxslt-dev libffi-dev libssl-dev libgflags-dev liblmdb-dev')
         os.system('apt-get install -y python-dev python-pip python-yaml')
         os.system('apt-get install -y libviennacl-dev opencl-headers')
-    
+
     os.system('pip install --upgrade pip')
     os.system('pip install cython')
-   
+
+
 def compile_malis(path):
     cwd = os.getcwd()
     os.chdir(path)
     os.system('sh make.sh')
     os.chdir(cwd)
+
 
 def compile_caffe(path):
     cpus = multiprocessing.cpu_count()
@@ -97,7 +99,8 @@ def compile_caffe(path):
     if result != 0:
         sys.exit(result)
     os.chdir(cwd)
-    
+
+
 def clone_malis(path, clone, update):
     if clone:
         os.system('git clone https://github.com/srinituraga/malis.git %s' % path)
@@ -107,6 +110,7 @@ def clone_malis(path, clone, update):
         os.system('git pull')
         os.chdir(cwd)
 
+
 def clone_caffe(path, clone, update):
     if clone:
         os.system('git clone https://github.com/naibaf7/caffe.git %s' % path)
@@ -115,7 +119,7 @@ def clone_caffe(path, clone, update):
         os.chdir(path)
         os.system('git pull')
         os.chdir(cwd)
-        
+
 
 def set_environment_vars():
     # Fix up OpenCL variables. Can interfere with the
