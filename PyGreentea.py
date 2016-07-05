@@ -14,7 +14,6 @@ import matplotlib
 matplotlib.use('Agg')
 import matplotlib.pyplot as plt
 import numpy as np
-from numpy import float32, int32, uint8
 import png
 from scipy import io
 
@@ -43,7 +42,7 @@ class NetInputWrapper:
     def __init__(self, net, shapes):
         self.net = net
         self.shapes = shapes
-        self.dummy_slice = np.ascontiguousarray([0]).astype(float32)
+        self.dummy_slice = np.ascontiguousarray([0]).astype(np.float32)
         self.inputs = []
         self.input_keys = ['data', 'label', 'scale', 'components', 'nhood']
         self.input_layers = []
@@ -52,11 +51,11 @@ class NetInputWrapper:
                 self.input_layers += [self.net.layers_dict[self.input_keys[i]]]
         for i in range(0,len(shapes)):
             # Pre-allocate arrays that will persist with the network
-            self.inputs += [np.zeros(tuple(self.shapes[i]), dtype=float32)]
+            self.inputs += [np.zeros(tuple(self.shapes[i]), dtype=np.float32)]
 
     def setInputs(self, data):
         for i in range(0,len(self.shapes)):
-            np.copyto(self.inputs[i], np.ascontiguousarray(data[i]).astype(float32))
+            np.copyto(self.inputs[i], np.ascontiguousarray(data[i]).astype(np.float32))
             self.net.set_layer_input_arrays(self.input_layers[i], self.inputs[i], self.dummy_slice)
 
 
@@ -652,7 +651,7 @@ def train(solver, test_net, data_arrays, train_data_arrays, options):
                 origin=[0] + offsets,
                 shape=[fmaps_in] + input_dims)
             label_slice = slice_data(dataset['label'], [0] + [offsets[di] + int(math.ceil(input_padding[di] / float(2))) for di in range(0, dims)], [fmaps_out] + output_dims)
-            components_slice, ccSizes = malis.connected_components_affgraph(label_slice.astype(int32), dataset['nhood'])
+            components_slice, ccSizes = malis.connected_components_affgraph(label_slice.astype(np.int32), dataset['nhood'])
             components_shape = (1,) + tuple(output_dims)
             components_slice = components_slice.reshape(components_shape)
             mask_slice = np.ones_like(components_slice, dtype=np.uint8)
