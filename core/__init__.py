@@ -17,8 +17,9 @@ import numpy as np
 import png
 from scipy import io
 
+import data_io
+import core.network_generator as netgen
 import visualization
-import network_generator as netgen
 
 # Import Caffe
 try:
@@ -29,12 +30,11 @@ except ImportError:
     sys.path.append(caffe_path)
     import caffe
 
+
 # set this to True after importing this module to prevent multithreading
 USE_ONE_THREAD = False
 DEBUG = False
 SAVE_IMAGES = False
-
-import data_io
 
 
 # Wrapper around a networks set_input_arrays to prevent memory leaks of locked up arrays
@@ -538,7 +538,7 @@ class MakeDatasetOffset(object):
         self.border = [int(math.ceil(pad / float(2))) for pad in input_padding]
         self.dims = len(input_dims)
         self.random_state = np.random.RandomState()
-        
+
     def calculate_offset_bounds(self, dataset):
         shape_of_source_data = [min(d,c) for d, c in \
                                 zip(dataset['data'].shape[-self.dims:],
@@ -579,19 +579,19 @@ def train(solver, test_net, data_arrays, train_data_arrays, options):
     test_eval = None
     if (options.test_net != None):
         test_eval = TestNetEvaluator(test_net, net, train_data_arrays, options)
-    
+
     input_dims, output_dims, input_padding = get_spatial_io_dims(net)
     fmaps_in, fmaps_out = get_fmap_io_dims(net)
 
     dims = len(output_dims)
     losses = []
-    
+
     shapes = []
     # Raw data slice input         (n = 1, f = 1, spatial dims)
     shapes += [[1,fmaps_in] + input_dims]
     # Label data slice input    (n = 1, f = #edges, spatial dims)
     shapes += [[1,fmaps_out] + output_dims]
-    
+
     if (options.loss_function == 'malis'):
         # Connected components input. 2 channels, one for each phase of computation
         shapes += [[1, 2] + output_dims]

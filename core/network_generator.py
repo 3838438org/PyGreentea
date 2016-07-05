@@ -136,7 +136,7 @@ class RunShape():
             self.conv_buffer_mem = 0
             # Weight memory (all values are summed up)
             self.weight_mem = 0
-            # Auxiliary memory (such as 
+            # Auxiliary memory (such as
             self.aux_mem = 0
 
         if self.fmaps < 1:

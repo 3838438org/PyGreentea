@@ -1,1 +1,2 @@
-DEBUG = False
+from core import *
+
