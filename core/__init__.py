@@ -719,7 +719,11 @@ def train(solver, test_net, data_arrays, train_data_arrays, options):
             # These are the affinity edge values
             net_io.setInputs([data_slice, label_slice])
         loss = solver.step(1)  # Single step
-        if SAVE_IMAGES:
+        try:
+            save_image = SAVE_IMAGES or i % options.save_image_snapshot_period == 0
+        except AttributeError:
+            save_image = SAVE_IMAGES
+        if save_image:
             dataset_to_show = dict()
             net_prediction_shape = (1, fmaps_out,) + tuple(output_dims)
             prediction = np.zeros(net_prediction_shape, np.float32)
