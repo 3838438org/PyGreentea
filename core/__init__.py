@@ -674,7 +674,12 @@ def train(solver, test_net, data_arrays, train_data_arrays, options):
             print("data_slice stats: min", data_slice.min(), "mean", data_slice.mean(), "max", data_slice.max())
             print("mask_mean: ", mask_mean)
         if options.loss_function == 'malis':
-            if mask_mean == 1:
+            try:
+                use_simple_malis_components =\
+                    mask_mean == 1 or not options.malis_split_component_phases
+            except AttributeError:
+                use_simple_malis_components = mask_mean == 1
+            if use_simple_malis_components:
                 components_negative_slice = components_slice
             else:
                 '''
@@ -682,6 +687,8 @@ def train(solver, test_net, data_arrays, train_data_arrays, options):
                 * mask_slice is 1 at voxels containing good components, with a small dilation
                 * components_slice does not contain component values equal to 1. (Original values were incremented.)
                 '''
+                assert 1 not in components_slice, "components_slice can't contain a component value of 1. " \
+                                                  "That's used for masked voxels in 'negative' MALIS training."
                 mask_inverse = np.ones_like(mask_slice) - mask_slice
                 # assert mask_inverse.shape == components_slice.shape
                 mask_inverse = mask_inverse.astype(components_slice.dtype)
