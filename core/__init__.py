@@ -4,7 +4,6 @@ import gc
 import logging
 import math
 import os
-import sys
 import threading
 import time
 
@@ -19,16 +18,8 @@ from scipy import io
 
 import data_io
 import core.network_generator as netgen
+from ext import caffe
 import visualization
-
-# Import Caffe
-try:
-    import caffe
-except ImportError:
-    caffe_parent_path = os.path.dirname(os.path.dirname(__file__))
-    caffe_path = os.path.join(caffe_parent_path, 'caffe_gt', 'python')
-    sys.path.append(caffe_path)
-    import caffe
 
 
 # set this to True after importing this module to prevent multithreading
