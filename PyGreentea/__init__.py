@@ -17,7 +17,7 @@ import png
 from scipy import io
 
 import data_io
-import core.network_generator as netgen
+import PyGreentea.network_generator as netgen
 from ext import caffe
 import visualization
 
