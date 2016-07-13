@@ -12,7 +12,8 @@ from scipy import ndimage
 from data_io import logger
 import dvision
 from dvision.component_filtering import get_good_components
-from .util import get_zero_padded_array_slice, replace_array_except_whitelist, replace_infrequent_values
+from .util import get_zero_padded_array_slice, replace_array_except_whitelist,\
+    replace_infrequent_values, erode_value_blobs
 
 dvid_classes = set()
 dvid_classes.add(dvision.DVIDDataInstance)
@@ -46,6 +47,12 @@ def get_outputs(original_dataset, output_slice):
     minimum_component_size = original_dataset.get('minimum_component_size', 0)
     if minimum_component_size > 0:
         components_array = replace_infrequent_values(components_array, minimum_component_size, 0)
+    component_erosion_steps = original_dataset.get('component_erosion_steps', 0)
+    if component_erosion_steps > 0:
+        components_array = erode_value_blobs(
+            components_array,
+            steps=component_erosion_steps,
+            values_to_ignore=(0,))
     components_array = components_array.reshape(components_shape)
     # dataset_numpy['components'] = components_array
     if 'label' in original_dataset:
