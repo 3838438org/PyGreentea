@@ -1,4 +1,4 @@
-FROM nvidia/cuda:7.5-cudnn5-devel-ubuntu14.04
+FROM nvidia/cuda:7.5-cudnn4-devel-ubuntu14.04
 
 MAINTAINER William Grisaitis <grisaitisw@janelia.hhmi.org>
 
@@ -31,8 +31,10 @@ ENV CAFFE_ROOT=/opt/caffe
 WORKDIR $CAFFE_ROOT
 
 ENV CLONE_TAG=master
+ENV COMMIT_SHA1=d8c5922f3fe3fd14f9bc5342a3e09aaf03186ddf
 
-RUN git clone -b ${CLONE_TAG} --depth 1 https://github.com/naibaf7/caffe.git . && \
+RUN git clone -b ${CLONE_TAG} https://github.com/TuragaLab/caffe.git . && \
+    git checkout ${COMMIT_SHA1} && \
     for req in $(cat python/requirements.txt) pydot; do pip install $req; done
 
 ADD Makefile.config.turagalab $CAFFE_ROOT/Makefile.config
@@ -50,14 +52,6 @@ RUN git clone -b master --depth 1 https://github.com/srinituraga/malis.git . && 
     pip install --upgrade numpy>=1.9 && \
     python setup.py install
 
-WORKDIR /opt/PyGreentea
-
-RUN git clone -b issue-dvid --depth 1 https://github.com/TuragaLab/PyGreentea.git . && \
-    for req in $(cat requirements.txt) pydot; do pip install $req; done && \
-    pip install PyCrypto
-
-ENV PYTHONPATH /opt/PyGreentea:$PYTHONPATH
-
 WORKDIR /opt/zwatershed
 
 RUN git clone -b master --depth 1 https://github.com/TuragaLab/zwatershed.git . && \
@@ -69,7 +63,6 @@ WORKDIR /opt/matplotlib
 
 RUN git clone -b v1.5.2rc2 --depth 1 https://github.com/matplotlib/matplotlib.git . && \
     for req in $(cat requirements.txt) pydot; do pip install $req; done && \
-    python setup.py install && \
-    python tests.py
+    python setup.py install
 
 WORKDIR /workspace
