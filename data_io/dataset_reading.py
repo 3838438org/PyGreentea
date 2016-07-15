@@ -121,9 +121,11 @@ def get_numpy_dataset(original_dataset, input_slice, output_slice, transform):
     dataset_numpy['data'] = image
     # load outputs if desired
     if output_slice is not None:
-        dilated_output_slices = tuple([slice(s.start - 1, s.stop + 1, s.step) for s in output_slice])
+        component_erosion_steps = original_dataset.get('component_erosion_steps', 0)
+        dilation_amount = 1 + component_erosion_steps
+        dilated_output_slices = tuple([slice(s.start - dilation_amount, s.stop + dilation_amount, s.step) for s in output_slice])
         components, affinities, mask = get_outputs(original_dataset, dilated_output_slices)
-        de_dilation_slices = (Ellipsis,) + tuple([slice(1, -1) for _ in output_slice])
+        de_dilation_slices = (Ellipsis,) + tuple([slice(dilation_amount, -dilation_amount) for _ in output_slice])
         dataset_numpy['components'] = components[de_dilation_slices]
         dataset_numpy['label'] = affinities[de_dilation_slices]
         dataset_numpy['mask'] = mask[de_dilation_slices]
