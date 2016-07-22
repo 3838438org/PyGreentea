@@ -25,6 +25,32 @@ except ImportError:
     pass
 
 
+def condense_and_split_components(components, output_shape, malis_neighborhood):
+    '''
+    :param components: numpy array with component values
+    :param output_shape: tuple with spatial dimensions of components
+    :param malis_neighborhood: array definition of malis neighborhood
+    :return: numpy array of same shape as components, with new component values
+    '''
+    original_shape = components.shape
+    components_for_malis = components.reshape(output_shape)
+    affinities = malis.seg_to_affgraph(components_for_malis, malis_neighborhood)
+    recomputed_components, _ = malis.connected_components_affgraph(affinities.astype(np.int32), malis_neighborhood)
+    recomputed_components = recomputed_components.reshape(original_shape)
+    return recomputed_components
+
+
+def shift_up_component_values(components):
+    '''
+    :param components: numpy array with component values
+    :return: numpy array of same shape as components, with new component values
+    '''
+    nonzero_components = np.not_equal(components, 0)
+    components += 1
+    components *= nonzero_components
+    return components
+
+
 def get_outputs(original_dataset, output_slice):
     output_shape = tuple([slice_.stop - slice_.start for slice_ in output_slice])
     n_spatial_dimensions = len(output_slice)
@@ -53,27 +79,24 @@ def get_outputs(original_dataset, output_slice):
             components_array,
             steps=component_erosion_steps,
             values_to_ignore=(0,))
+    components_for_malis = components_array.reshape(output_shape)
+    affinities_from_components = malis.seg_to_affgraph(
+        components_for_malis,
+        original_dataset['nhood'])
+    components_array, _ = malis.connected_components_affgraph(
+        affinities_from_components,
+        original_dataset['nhood'])
+    components_array = shift_up_component_values(components_array)
     components_array = components_array.reshape(components_shape)
-    # dataset_numpy['components'] = components_array
     if 'label' in original_dataset:
         label_shape = original_dataset['label'].shape
         label_slices = [slice(0, l) for l in label_shape]
         label_slices[-n_spatial_dimensions:] = output_slice
         affinities_array = get_zero_padded_array_slice(original_dataset['label'], label_slices)
-        # dataset_numpy['label'] = affinities_array
     else:
         # compute affinities from components
-        logger.debug("Computing affinity labels because 'label' wasn't provided in data source.")
-        components_for_malis = components_array.reshape(output_shape)
-        affinities_array = malis.seg_to_affgraph(components_for_malis, original_dataset['nhood'])
-        # dataset_numpy['label'] = affinities_array
-        components_array, _ = malis.connected_components_affgraph(affinities_array.astype(np.int32), original_dataset['nhood'])
-        components_array = components_array.reshape(components_shape)
-        # should this shifting happen all the time, or only in this `else` statement?
-        nonzero_components = np.not_equal(components_array, 0)
-        components_array += 1
-        components_array *= nonzero_components
-        # dataset_numpy['components'] = components_array
+        logger.debug("Computing affinity labels from components because 'label' wasn't provided in data source.")
+        affinities_array = affinities_from_components
     assert affinities_array.shape == affinities_shape, \
         "affinities_array.shape is {actual} but should be {desired}".format(
             actual=str(affinities_array.shape), desired=str(affinities_shape))
