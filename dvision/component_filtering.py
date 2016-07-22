@@ -7,7 +7,7 @@ from dvision import dvid_requester
 good_components_cache = dict()
 
 
-def request_good_components(uuid, exclude_strs, hostname='emdata2.int.janelia.org', port=7000):
+def request_good_components(uuid, exclude_strs, hostname='emdata1.int.janelia.org', port=7000):
     req = dvid_requester.get(
         url='http://{hostname}:{port}/api/node/{uuid}/annotations/key/annotations-body'.format(
             hostname=hostname,
