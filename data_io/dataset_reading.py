@@ -105,8 +105,19 @@ def get_numpy_dataset(original_dataset, input_slice, output_slice, transform):
     logger.debug("image_slices: {}".format(image_slices))
     source_image = get_zero_padded_array_slice(original_dataset['data'], image_slices)
     image = np.array(source_image, dtype=np.float32)
-    if source_image.dtype.kind == 'i' or np.max(image) > 1:
-        image = image / (2.0 ** 8)
+    image_scaling_factor = original_dataset.get('image_scaling_factor', None)
+    if image_scaling_factor is None and source_image.dtype.kind in ('i', 'u'):  # integer, signed or unsigned
+        image_scaling_factor = 0.5 ** 8
+        message = """Data reader is scaling your image data by a factor of
+                     1/256 because it's an integer data type and no scaling
+                     factor was provided. If you don't like this default
+                     behavior, then provide a dataset['image_scaling_factor']
+                     key-value pair in your training dataset."""\
+                     .format(isf=image_scaling_factor)
+        warnings.warn(message)
+    if image_scaling_factor is not None:
+        logger.debug("Scaling image by {isf}".format(isf=image_scaling_factor))
+        image = np.multiply(image, image_scaling_factor)
     if transform:
         if 'transform' in original_dataset:
             lo, hi = original_dataset['transform']['scale']
