@@ -139,8 +139,12 @@ def get_numpy_dataset(original_dataset, input_slice, output_slice, transform):
                      .format(isf=image_scaling_factor)
         warnings.warn(message)
     if image_scaling_factor is not None:
-        logger.debug("Scaling image by {isf}".format(isf=image_scaling_factor))
-        image = np.multiply(image, image_scaling_factor)
+        if image_scaling_factor == 1.0:
+            # congratulations, you have successfully prevented data scaling
+            pass
+        else:
+            logger.debug("Scaling image by {isf}".format(isf=image_scaling_factor))
+            image = np.multiply(image, image_scaling_factor)
     if transform:
         if 'transform' in original_dataset:
             lo, hi = original_dataset['transform']['scale']
