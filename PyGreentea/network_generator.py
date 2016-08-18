@@ -68,7 +68,7 @@ class NetConf:
     fmap_output = 3
     # Loss function and mode ("malis", "euclid", "softmax")
     loss_function = "euclid"
-    malis_split_component_phases = False
+    malis_split_component_phases = True
     # ReLU negative slope
     relu_slope = 0.005
     # Batch normalization
