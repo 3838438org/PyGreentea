@@ -75,10 +75,12 @@ def get_outputs(original_dataset, output_slice):
         components_array = replace_infrequent_values(components_array, minimum_component_size, 0)
     component_erosion_steps = original_dataset.get('component_erosion_steps', 0)
     if component_erosion_steps > 0:
+        only_xy = original_dataset.get('component_erosion_only_xy', False)
         components_array = erode_value_blobs(
             components_array,
             steps=component_erosion_steps,
-            values_to_ignore=(0,))
+            values_to_ignore=(0,),
+            only_xy=only_xy)
     components_for_malis = components_array.reshape(output_shape)
     affinities_from_components = malis.seg_to_affgraph(
         components_for_malis,

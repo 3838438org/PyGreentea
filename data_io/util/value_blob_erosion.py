@@ -2,7 +2,15 @@ import numpy as np
 from scipy import ndimage
 
 
-def erode_value_blobs(array, steps=1, values_to_ignore=tuple(), new_value=0):
+def erode_value_blobs(array, steps=1, values_to_ignore=tuple(), new_value=0, only_xy=False):
+
+    if only_xy:
+        assert(len(array.shape) == 3)
+        results = []
+        for z in range(array.shape[0]):
+            results.append(erode_value_blobs(array[z], steps, values_to_ignore, new_value, only_xy=False))
+        return np.array(results)
+
     unique_values = list(np.unique(array))
     all_entries_to_keep = np.zeros(shape=array.shape, dtype=np.bool)
     for unique_value in unique_values:
