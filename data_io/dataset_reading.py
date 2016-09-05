@@ -58,7 +58,7 @@ def get_outputs(original_dataset, output_slices):
     mask_raw = get_raw_mask(original_dataset, output_slices, components_raw)
     components = remove_named_components(original_dataset, components_raw)
     components = remove_small_components(original_dataset, components)
-    components = erode_components(original_dataset, components)
+    components = erode_components(original_dataset, output_shape, components, mask_raw)
     components, affinities = \
         compress_and_shift_up_components(original_dataset, output_shape, components)
     mask_euclidean = get_euclidean_mask(original_dataset, components, mask_raw)
@@ -126,15 +126,17 @@ def compress_and_shift_up_components(original_dataset, output_shape, components)
     return components, affinities_from_components
 
 
-def erode_components(original_dataset, components):
+def erode_components(original_dataset, output_shape, components, mask_raw):
     component_erosion_steps = original_dataset.get('component_erosion_steps', 0)
     if component_erosion_steps > 0:
         only_xy = original_dataset.get('component_erosion_only_xy', False)
         components = erode_value_blobs(
-            components,
+            components.reshape(output_shape),
             steps=component_erosion_steps,
             values_to_ignore=(0,),
-            only_xy=only_xy)
+            only_xy=only_xy,
+            mask=mask_raw.reshape(output_shape),
+        )
     return components
 
 
