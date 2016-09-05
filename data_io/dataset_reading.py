@@ -63,6 +63,22 @@ def get_outputs(original_dataset, output_slice):
     components_array = get_zero_padded_array_slice(original_dataset['components'], component_slices)
     source_class = type(original_dataset['components'])
     components_are_from_dvid = source_class in dvid_classes
+    if 'mask' in original_dataset:
+        mask_array = get_zero_padded_array_slice(original_dataset['mask'], output_slice)
+    else:
+        if components_are_from_dvid:
+            # infer mask values: 1 if component is nonzero, 0 otherwise
+            mask_array = np.not_equal(components_array, 0)
+            logger.debug("No mask provided. Setting to 1 where components != 0.")
+        else:
+            # assume no masking
+            mask_array = np.ones_like(components_array, dtype=np.uint8)
+            logger.debug("No mask provided. Setting to 1 where outputs exist.")
+    mask_dilation_steps = original_dataset.get('mask_dilation_steps', 1)
+    if mask_dilation_steps:
+        mask_array = ndimage.binary_dilation(mask_array, iterations=mask_dilation_steps)
+    mask_array = mask_array.astype(np.uint8)
+    mask_array = mask_array.reshape(mask_shape)
     exclude_strings = original_dataset.get('body_names_to_exclude', [])
     if exclude_strings and components_are_from_dvid:
         dvid_uuid = original_dataset['components'].uuid
@@ -102,22 +118,6 @@ def get_outputs(original_dataset, output_slice):
     assert affinities_array.shape == affinities_shape, \
         "affinities_array.shape is {actual} but should be {desired}".format(
             actual=str(affinities_array.shape), desired=str(affinities_shape))
-    if 'mask' in original_dataset:
-        mask_array = get_zero_padded_array_slice(original_dataset['mask'], output_slice)
-    else:
-        if components_are_from_dvid:
-            # infer mask values: 1 if component is nonzero, 0 otherwise
-            mask_array = np.not_equal(components_array, 0)
-            logger.debug("No mask provided. Setting to 1 where components != 0.")
-        else:
-            # assume no masking
-            mask_array = np.ones_like(components_array, dtype=np.uint8)
-            logger.debug("No mask provided. Setting to 1 where outputs exist.")
-    mask_dilation_steps = original_dataset.get('mask_dilation_steps', 1)
-    if mask_dilation_steps:
-        mask_array = ndimage.binary_dilation(mask_array, iterations=mask_dilation_steps)
-    mask_array = mask_array.astype(np.uint8)
-    mask_array = mask_array.reshape(mask_shape)
     # dataset_numpy['mask'] = mask_array
     return components_array, affinities_array, mask_array
 
