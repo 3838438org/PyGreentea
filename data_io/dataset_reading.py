@@ -129,10 +129,12 @@ def compress_and_shift_up_components(original_dataset, output_shape, components)
 def erode_components(original_dataset, components):
     component_erosion_steps = original_dataset.get('component_erosion_steps', 0)
     if component_erosion_steps > 0:
+        only_xy = original_dataset.get('component_erosion_only_xy', False)
         components = erode_value_blobs(
             components,
             steps=component_erosion_steps,
-            values_to_ignore=(0,))
+            values_to_ignore=(0,),
+            only_xy=only_xy)
     return components
 
 
