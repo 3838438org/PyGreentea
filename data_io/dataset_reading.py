@@ -96,7 +96,8 @@ def get_outputs(original_dataset, output_slice):
             components_array,
             steps=component_erosion_steps,
             values_to_ignore=(0,),
-            only_xy=only_xy)
+            only_xy=only_xy,
+            mask=mask_array)
     components_for_malis = components_array.reshape(output_shape)
     affinities_from_components = malis.seg_to_affgraph(
         components_for_malis,
