@@ -693,6 +693,15 @@ def train(solver, test_net, data_arrays, train_data_arrays, options):
                 os.mkdir('snapshots')
             f.savefig('snapshots/%08d.png' % i)
             plt.close()
+            with open('snapshots/%08d_offset.txt'%i, 'w') as f:
+                f.write(dataset['name'] + '\n')
+                f.write(str(dataset['offset']) + '\n')
+                f.write("mask_slice.shape: " + str(mask_slice.shape) + "\n")
+                f.write("output_dims: " + str(output_dims) + "\n")
+            with h5py.File('snapshots/%08d_chunk.hdf'%i, 'w') as f:
+                f['data'] = data_slice
+                f['components'] = components_slice
+                f['mask'] = mask_slice
         while gc.collect():
             pass
         time_of_iteration = time.time() - start
