@@ -111,12 +111,11 @@ def get_outputs(original_dataset, output_slice):
             # assume no masking
             mask_array = np.ones_like(components_array, dtype=np.uint8)
             logger.debug("No mask provided. Setting to 1 where outputs exist.")
-    mask_dilation_steps = original_dataset.get('mask_dilation_steps', 1)
-    if mask_dilation_steps:
+    mask_dilation_steps = original_dataset.get('mask_dilation_steps', 0)
+    if mask_dilation_steps > 0:
         mask_array = ndimage.binary_dilation(mask_array, iterations=mask_dilation_steps)
     mask_array = mask_array.astype(np.uint8)
     mask_array = mask_array.reshape(mask_shape)
-    # dataset_numpy['mask'] = mask_array
     return components_array, affinities_array, mask_array
 
 
