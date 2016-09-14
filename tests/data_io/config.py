@@ -1,14 +1,12 @@
 from __future__ import print_function
 
 import os
-from libdvid.voxels import VoxelsAccessor
 import h5py
 
 DEBUG = True
 
 using_in_memory = False
 
-# dataset_source_type = VoxelsAccessor
 # dataset_source_type = 'hdf5 file paths'
 dataset_source_type = h5py.File
 

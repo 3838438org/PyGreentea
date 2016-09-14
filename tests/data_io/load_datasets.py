@@ -6,8 +6,7 @@ import h5py
 import malis
 import numpy as np
 
-from libdvid.voxels import VoxelsAccessor
-
+from dvision import DVIDDataInstance
 from .config import using_in_memory, path_to_training_datasets, training_dataset_names, dataset_source_type, dvid_uuid
 
 
@@ -25,14 +24,15 @@ def get_train_dataset(dataset_source_type_, using_in_memory=False):
             data='grayscale',
             components='labels',
         )
-        dvid_hostname = 'emdata2.int.janelia.org:7000'
+        dvid_hostname = 'emdata2.int.janelia.org'
+        dvid_port = 7000
         dataset['name'] = dname
         dataset['nhood'] = malis.mknhood3d()
         for key in ['data', 'components']:
-            if dataset_source_type_ == VoxelsAccessor:
+            if dataset_source_type_ == DVIDDataInstance:
                 if key in dvid_data_names:
                     data_name = dvid_data_names[key]
-                    dataset[key] = VoxelsAccessor(hostname=dvid_hostname, uuid=dvid_uuid, data_name=data_name)
+                    dataset[key] = DVIDDataInstance(dvid_hostname, dvid_port, dvid_uuid, data_name)
             elif dataset_source_type_ == h5py.File:
                 dataset[key] = h5py.File(h5_filenames[key], 'r')['main']
                 if using_in_memory:

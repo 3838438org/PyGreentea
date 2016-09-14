@@ -3,14 +3,15 @@ from __future__ import print_function
 import unittest
 
 import numpy as np
-from libdvid.voxels import VoxelsAccessor
 import h5py
 import malis
 
 from data_io.dataset_reading import get_numpy_dataset
-from .load_datasets import get_train_dataset
-from data_io.dvid_connectivity import get_good_components
 from data_io.util import replace_array_except_whitelist
+from dvision import DVIDDataInstance
+from dvision.component_filtering import get_good_components
+from tests.data_io.load_datasets import get_train_dataset
+
 
 class TestGetNumpyDataset(unittest.TestCase):
     def test_works_with_hdf5_fibsem(self):
@@ -27,7 +28,7 @@ class TestGetNumpyDataset(unittest.TestCase):
             )
 
     def test_works_with_dvid(self):
-        train_dataset = get_train_dataset(VoxelsAccessor)
+        train_dataset = get_train_dataset(DVIDDataInstance)
         dataset = train_dataset[0]
         dataset['body_names_to_exclude'] = ['out']
         origin = (3000, 3000, 3000)
@@ -61,8 +62,8 @@ class TestGetNumpyDataset(unittest.TestCase):
         components_slices[-3:] = output_slices
         components_slices = tuple(components_slices)
         expected_components_array = np.array(dataset['components'][components_slices]).reshape((1,) + output_shape)
-        if type(dataset['components']) is VoxelsAccessor:
-            print("Is VoxelsAccessor...")
+        if type(dataset['components']) is DVIDDataInstance:
+            print("Is DVIDDataInstance...")
             print("uniques before:", np.unique(expected_components_array))
             dvid_uuid = dataset['components'].uuid
             body_names_to_exclude = dataset.get('body_names_to_exclude')
@@ -74,7 +75,7 @@ class TestGetNumpyDataset(unittest.TestCase):
         components_for_affinity_generation = expected_components_array.reshape(output_shape)
         expected_label = malis.seg_to_affgraph(components_for_affinity_generation, malis.mknhood3d())
         expected_dataset['label'] = expected_label
-        if type(dataset['components']) is VoxelsAccessor:
+        if type(dataset['components']) is DVIDDataInstance:
             expected_mask = np.array(expected_components_array > 0).astype(np.uint8)
         else:
             expected_mask = np.ones(shape=(1,) + output_shape, dtype=np.uint8)

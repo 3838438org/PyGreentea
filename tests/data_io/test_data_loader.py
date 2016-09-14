@@ -3,18 +3,18 @@ from __future__ import print_function
 import unittest
 
 import h5py
-from libdvid.voxels import VoxelsAccessor
 import numpy as np
 
 from data_io import DataLoader
 from data_io.dataset_reading import get_numpy_dataset
+from dvision import DVIDDataInstance
 from .load_datasets import get_train_dataset
 
 
 class TestDataLoader(unittest.TestCase):
     # @mock.patch('data_io.get_numpy_dataset', side_effect=mock_get_numpy_dataset)
     def test_loads_data_chunks_from_dvid(self):
-        train_dataset = get_train_dataset(VoxelsAccessor)
+        train_dataset = get_train_dataset(DVIDDataInstance)
         dataset_to_test = train_dataset[0]
         dataset, numpy_dataset = self.get_datasets_for(dataset_to_test, offset=(3000, 3000, 3000))
         for key in ['data', 'components', 'label', 'mask']:
