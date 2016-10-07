@@ -6,6 +6,13 @@ pypng
 requests
 scipy
 
+# processing
+ipyparallel
+zarr
+
+# development
+jupyter
+
 # test
 expects
 mock
