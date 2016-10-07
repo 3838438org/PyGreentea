@@ -1,6 +1,6 @@
 # runtime
 h5py
-matplotlib
+matplotlib>=1.5.3
 numpy>=1.9
 pypng
 requests
