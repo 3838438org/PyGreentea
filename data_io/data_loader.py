@@ -167,6 +167,7 @@ class DataLoader(object):
         index_of_given_dataset = dataset_metadata['real']
         new_dataset = dict()
         new_dataset['offset'] = dataset_metadata['offset']
+        new_dataset["dataset_index"] = index_of_given_dataset
         shared_dataset = self.shared_datasets[index_of_shared_dataset]
         given_dataset = self.datasets[index_of_given_dataset]
         for key in shared_dataset:
