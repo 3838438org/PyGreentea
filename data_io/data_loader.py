@@ -4,6 +4,7 @@ import multiprocessing
 import sys
 import time
 import traceback
+from contextlib import contextmanager
 from operator import mul
 
 import numpy as np
@@ -245,3 +246,65 @@ class DataLoader(object):
         except AttributeError:
             pass
         return
+
+
+class DatasetRequest(object):
+    def __init__(self, dataset_index, offset, transform=True):
+        self.dataset_index = dataset_index
+        self.offset = offset
+        self.transform = transform
+        self.started = False
+        self.finished = False
+
+    @classmethod
+    def from_dataset_offset(cls, dataset_offset):
+        return cls(dataset_offset["dataset_index"], dataset_offset["offset"])
+
+
+class DataQueue(object):
+    def __init__(self, data_loader):
+        self.data_loader = data_loader
+        self.never_used_shared_datasets = set(range(self.data_loader.size))
+        self.unstarted_data_requests = set()
+        self.shared_datasets_in_use = dict()
+        # self.shared_datasets = dict.fromkeys(range(self.data_loader.size), None)
+
+    def enqueue(self, dataset_offset):
+        dr = DatasetRequest.from_dataset_offset(dataset_offset)
+        self.unstarted_data_requests.add(dr)
+        try:
+            unused_shared_dataset_index = self.never_used_shared_datasets.pop()
+        except KeyError:
+            return
+        dr = self.unstarted_data_requests.pop()
+        self.start_request(dr, unused_shared_dataset_index)
+
+    @property
+    def is_empty(self):
+        some_arent_started = len(self.unstarted_data_requests) > 0
+        some_are_in_progress = len(self.shared_datasets_in_use) > 0
+        return not (some_arent_started or some_are_in_progress)
+
+    def start_request(self, dr, shared_dataset_index):
+        dr.started = True
+        self.shared_datasets_in_use[shared_dataset_index] = dr
+        self.data_loader.start_refreshing_shared_dataset(
+            shared_dataset_index,
+            dr.offset,
+            dr.dataset_index,
+            transform=False,
+            wait=True
+        )
+        dr.finished = True
+
+    @contextmanager
+    def dequeue(self):
+        dataset, index_of_shared_dataset = self.data_loader.get_dataset()
+        yield dataset
+        dr = self.shared_datasets_in_use.pop(index_of_shared_dataset)
+        dr.finished = True
+        try:
+            dr = self.unstarted_data_requests.pop()
+        except KeyError:
+            return
+        self.start_request(dr, index_of_shared_dataset)
