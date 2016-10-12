@@ -1,8 +1,17 @@
 import itertools
+import math
 
 
-def chunkify_shape(shape, chunk_shape):
+def chunkify_shape(shape, chunk_shape, integral_block_shape=None):
     assert len(shape) == len(chunk_shape), "shape and chunk_shape have different # dimensions"
+    if integral_block_shape is not None:
+        if any((c % i) != 0 for c, i in zip(chunk_shape, integral_block_shape)):
+            raise ValueError("chunk_shape must be an integer multiple of integral_block_shape along every axis")
+        shape_1 = tuple(int(math.ceil(1.0 * s / i)) for s, i in zip(shape, integral_block_shape))
+        chunk_shape_1 = tuple(c / i for c, i in zip(chunk_shape, integral_block_shape))
+        offsets_1 = chunkify_shape(shape_1, chunk_shape_1)
+        offsets = tuple(tuple(ibs * o1 for ibs, o1 in zip(integral_block_shape, os1)) for os1 in offsets_1)
+        return offsets
     offsets = [None for _ in shape]
     for i, i_offsets in enumerate(offsets):
         extra = shape[i] % chunk_shape[i]
@@ -13,19 +22,4 @@ def chunkify_shape(shape, chunk_shape):
             offsets[i] = inner_offsets + edge_offset
         else:
             offsets[i] = inner_offsets
-    # result = itertools.product(*[range(0, s + c - 1, c)[:-1] for s, c in zip(shape, chunk_shape)])
     return tuple(itertools.product(*offsets))
-
-
-if __name__ == '__main__':
-    chunk_offsets = chunkify_shape((1,), (1,))
-    assert chunk_offsets == ((0,),), chunk_offsets
-
-    chunk_offsets = chunkify_shape((2,), (1,))
-    assert chunk_offsets == ((0,), (1,)), chunk_offsets
-
-    chunk_offsets = chunkify_shape((7,), (5,))
-    assert chunk_offsets == ((0,), (2,)), chunk_offsets
-
-    chunk_offsets = chunkify_shape((3, 4), (2, 2))
-    assert chunk_offsets == ((0, 0), (0, 2), (1, 0), (1, 2)), chunk_offsets
