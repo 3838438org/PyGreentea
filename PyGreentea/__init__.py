@@ -376,7 +376,8 @@ def process(net, data_arrays, shapes=None, net_io=None, zero_pad_source_data=Tru
                   .format(i=source_dataset_index, o=list_of_offsets_to_process))
         # make a copy of that list for enqueueing purposes
         offsets_to_enqueue = list(list_of_offsets_to_process)
-        data_array = data_arrays[source_dataset_index]['data']
+        original_dataset = data_arrays[source_dataset_index]
+        data_array = original_dataset['data']
         if target_arrays is not None:
             pred_array = target_arrays[source_dataset_index]
         else:
@@ -432,7 +433,11 @@ def process(net, data_arrays, shapes=None, net_io=None, zero_pad_source_data=Tru
                     )
             # process the chunk
             output = process_input_data(net_io, data_slice)
-            print(offsets)
+            if "region_offset" in original_dataset:
+                region_offset = original_dataset["region_offset"]
+                print(offsets, [o + ro for o, ro in zip(offsets, region_offset)])
+            else:
+                print(offsets)
             print(output.mean())
             offsets_that_have_been_processed.append(offsets)
             pads = [int(math.ceil(pad / float(2))) for pad in input_padding]
