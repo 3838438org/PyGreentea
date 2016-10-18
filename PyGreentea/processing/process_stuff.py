@@ -2,6 +2,7 @@ from __future__ import print_function
 
 import os
 from pprint import pprint
+import time
 
 import ipyparallel
 import numpy as np
@@ -84,8 +85,10 @@ root_dir = "/scratch/affinities"
 # target = AffinityHandler(dname, model, iteration, affinity_shape,
 #                          affinity_chunk_shape, root_dir="/scratch/affinities")
 
+timestr = time.strftime("-%Y.%m.%d-%H.%M.%S")
+
 affinity_opener = ZarrArrayHandler(
-    path=os.path.join(root_dir, model, iteration, dname + "-2"),
+    path=os.path.join(root_dir, model, iteration, dname + timestr),
     key="main",
     name=dname,
     shape=affinity_shape,
