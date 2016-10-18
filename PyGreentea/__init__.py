@@ -270,11 +270,11 @@ def process(net, data_arrays, shapes=None, net_io=None, zero_pad_source_data=Tru
     using_data_loader = data_io.data_loader_should_be_used_with(data_arrays)
     if using_data_loader:
         processing_data_loader = data_io.DataLoader(
-            size=5,
+            size=11,
             datasets=data_arrays,
             input_shape=tuple(input_dims),
             output_shape=None,  # ignore labels
-            n_workers=3
+            n_workers=10,
         )
     dataset_offsets_to_process = generate_dataset_offsets_for_processing(
         net, data_arrays, process_borders=zero_pad_source_data)
