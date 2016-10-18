@@ -1,2 +1,2 @@
-from processor import Processor
-# from affinity_handler import AffinityHandler
+from .processor import Processor
+from .array_handlers import ZarrAffinityHandler, H5PYDArrayHandler

@@ -14,32 +14,52 @@ class Processor(object):
 
     @staticmethod
     def import_and_process(net_path, caffemodel_path, array_like, target):
-        import numpy as np
-        def generate_pred():
+        def initialize_net():
             import os
-            import h5py
             import PyGreentea as pygt
             pygt.caffe.set_mode_gpu()
             pygt.caffe.set_device(0)
             assert os.path.exists(net_path), net_path
             assert os.path.exists(caffemodel_path), caffemodel_path
             net = pygt.caffe.Net(net_path, caffemodel_path, pygt.caffe.TEST)
+            return net
+
+        def process_array_with_net(net, array_like, target):
+            import h5py
+            import PyGreentea as pygt
             if array_like is None:
-                input_data = h5py.File("/groups/turaga/home/turagas/data/FlyEM/fibsem_medulla_7col/tstvol-520-1-h5/im_uint8.h5")["main"]
+                input_data = h5py.File("/groups/turaga/home/turagas/data/FlyEM/fibsem_medulla_7col/tstvol-520-2-h5/im_uint8.h5")["main"]
                 dataset = dict(data=input_data, name="test", image_scaling_factor=0.5 ** 8)
-                preds = pygt.process(net, [dataset])
+                preds = pygt.process(net, [dataset], target_arrays=[target])
             else:
                 input_data = array_like
-                dataset = dict(data=input_data, name="test", image_scaling_factor=0.5 ** 8)
-                preds = pygt.process(net, [dataset])
+                dataset = dict(data=input_data, name="test", image_scaling_factor=0.5 ** 8, image_is_zero_padded=True, region_offset=array_like.offset)
+                preds = pygt.process(net, [dataset], target_arrays=[target])
             return preds[0]
-        
-        # pred = generate_pred()
-        pred = np.random.RandomState(seed=0).uniform(size=np.prod((3,) + array_like.shape)).reshape((3,) + array_like.shape).astype(np.float32)
-        if target:
-            target.save(pred, array_like.offset)
-        pred_summary = dict(pred_mean=pred.mean(),
-                            pred_shape=pred.shape,
+
+        def generate_fake(array_like):
+            import numpy as np
+            shape = (3,) + array_like.shape
+            x = np.ones(shape=shape, dtype=np.float32)
+            return x
+
+        def generate_pred(array_like, target):
+            global net
+            try:
+                pred = process_array_with_net(net, array_like, target)
+            except NameError:
+                net = initialize_net()
+                pred = process_array_with_net(net, array_like, target)
+            return pred
+
+        pred = generate_pred(array_like, target)
+        # pred = generate_fake(array_like)
+        # if target:
+        #     if array_like is not None:
+        #         target.save(pred, array_like.offset)
+        #     else:
+        #         target.save(pred, (0, 0, 0))
+        pred_summary = dict(pred_shape=pred.shape,
                             source_offset=array_like.offset,
                             source_shape=array_like.shape)
         return pred_summary,
@@ -48,17 +68,13 @@ class Processor(object):
         async_result = self.executor.apply_async(self.import_and_process, self.net_path, self.caffemodel_path, source, target)
         return async_result
 
+# rng = np.random.RandomState(seed=0)
+# x = rng.uniform(size=np.prod(shape))
+# x = x.astype(np.float32)
+# x = x.reshape(shape)
 
-# def new_set_item(item):
-#     shape = tuple(s.stop - s.start for s in item)
-#     if reduce(mul, shape) * dataset.dtype(0).itemsize > 65421312:
-#         chunk_shape = (3, 176, 176, 176)
-#         chunk_offsets = chunkify_shape(shape, chunk_shape)
-#         chunks_slices = [tuple(slice(x, x+l) for x, l in zip(offset, chunk_shape)) for offset in chunk_offsets]
-#         for slices in chunk_slices:
-# if out_array.nbytes > (3 * 176 ** 3):
-#     warnings.warn("This is probably too big...{} with {} bytes".format(out_array.shape, out_array.nbytes))
-# target_slices = tuple([slice(o, o + l) for o, l in zip((0,) + array_like.offset, out_array.shape)])
-# print("writing to", target_slices)
-# with target.open() as a:
-#     a[target_slices] = out_array
+
+# import h5py
+# pred_name = "-".join(["{0:03d}_{1:03d}".format(x, x + l) for x, l in zip(array_like.offset, array_like.shape)]) + ".h5"
+# with h5py.File("/nobackup/turaga/grisaitisw/tmp/{}".format(pred_name), "w") as f:
+#     f.create_dataset("main", data=pred)
