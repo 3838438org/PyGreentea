@@ -343,20 +343,20 @@ def process(net, data_arrays, shapes=None, net_io=None, zero_pad_source_data=Tru
                         [0] + offsets,
                         [fmaps_in] + [output_dims[di] + input_padding[di] for di in range(dims)]
                     )
-            # process the chunk
+            if "region_offset" in original_dataset:
+                region_offset = original_dataset["region_offset"]
+                print(offsets, [o + ro for o, ro in zip(offsets, region_offset)])
+            else:
+                print(offsets)
             image_is_all_zeros = not np.any(data_slice)  # http://stackoverflow.com/a/23567941/781938
             if image_is_all_zeros:
-                print("skipping", offsets, "because it's all zeros")
+                print("skipping because it's all zeros")
             else:
+                # process the chunk
                 output = process_input_data(net_io, data_slice)
                 pads = [int(math.ceil(pad / float(2))) for pad in input_padding]
                 offsets_for_pred_array = [0] + [offset + pad for offset, pad in zip(offsets, pads)]
                 set_slice_data(pred_array, output, offsets_for_pred_array, [fmaps_out] + output_dims)
-                if "region_offset" in original_dataset:
-                    region_offset = original_dataset["region_offset"]
-                    print(offsets, [o + ro for o, ro in zip(offsets, region_offset)])
-                else:
-                    print(offsets)
                 print(output.mean())
             offsets_that_have_been_processed.append(offsets)
             if using_data_loader and len(offsets_to_enqueue) > 0:
