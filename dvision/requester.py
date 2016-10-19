@@ -1,7 +1,17 @@
-from dvision import logger
+from socket import error as SocketError
 
 import requests
 from requests.adapters import HTTPAdapter
+from retrying import retry
+
+from dvision import logger
+
+
+def is_socket_error(exception):
+    """
+    Only retry if the exception is a SocketError. Fail otherwise.
+    """
+    return isinstance(exception, SocketError)
 
 
 class DVIDRequester(object):
@@ -9,6 +19,8 @@ class DVIDRequester(object):
         self.whitelist = hostname_whitelist
         self.session = requests.Session()
 
+    @retry(wait_exponential_multiplier=100, wait_exponential_max=10000,
+           retry_on_exception=is_socket_error, wrap_exception=True)
     def get(self, *args, **kwargs):
         logger.debug("Getting url " + repr(args))
         with requests.Session() as session:
@@ -20,6 +32,8 @@ class DVIDRequester(object):
             else:
                 raise Exception("Bad response: {}".format(response.text))
 
+    @retry(wait_exponential_multiplier=100, wait_exponential_max=10000,
+           retry_on_exception=is_socket_error, wrap_exception=True)
     def post(self, *args, **kwargs):
         url_args = list(args) + [kwargs.get('url', '')]
         hostname_is_ok = any([
