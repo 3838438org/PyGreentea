@@ -14,7 +14,7 @@ NV_GPU=1 \
     -v /groups/turaga/home:/groups/turaga/home \
     -v ~/src/PyGreentea:/opt/PyGreentea:ro \
     --name $container_name \
-    turagalab/greentea:cudnn5-caffe_gt-pygt-0.9c \
+    turagalab/greentea:cudnn5-caffe_gt-pygt-0.9d \
     /bin/bash -c "HOME=/groups/turaga/home/grisaitisw python -u process_stuff.py"
 
 
