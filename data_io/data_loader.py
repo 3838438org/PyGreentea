@@ -92,6 +92,7 @@ class DataLoader(object):
         self.input_shape = input_shape
         self.outputs_are_ignored = output_shape is None
         self.output_shape = output_shape or (0, 0, 0)
+        self.n_workers = n_workers
         self.make_dataset_offset = dataset_offset_func
         self._list = list()
         self.shapes = {
@@ -112,12 +113,27 @@ class DataLoader(object):
             for output_key in self.keys_to_ignore:
                 self.dtypes.pop(output_key)
                 self.shapes.pop(output_key)
+        self.refreshes_in_progress = []
+        self.pool = None
+        self.reset_pool()
+        return
+
+    def _initialize_worker(self):
+        np.random.seed()
+        global shared_datasets
+        shared_datasets = self.shared_datasets
+        global datasets
+        datasets = self.datasets
+        global dtypes
+        dtypes = self.dtypes
+
+    def _initialize_shared_memory_arrays(self):
+        shared_datasets = []
         sizes = dict()
         for key, shape in self.shapes.iteritems():
             sizes[key] = reduce(mul, shape)
         logger.debug("sizes: {}".format(sizes))
-        self.shared_datasets = []
-        for n in range(size):
+        for n in range(self.size):
             shared_dataset = dict()
             for key in self.dtypes:
                 size = sizes[key]
@@ -127,40 +143,46 @@ class DataLoader(object):
                           "and size {s}".format(key=key, c=ctype, s=size)
                 logger.debug(message)
                 shared_dataset[key] = multiprocessing.Array(ctype, size, lock=False)
-            self.shared_datasets.append(shared_dataset)
+            shared_datasets.append(shared_dataset)
+        return shared_datasets
+
+    def reset_pool(self):
+        self.destroy()
+        self.ready_shared_datasets = []
+        self.shared_datasets = self._initialize_shared_memory_arrays()
         self.pool = multiprocessing.Pool(
-            processes=n_workers,
-            initializer=self._initialize_pool,
+            processes=self.n_workers,
+            initializer=self._initialize_worker,
             initargs=(),
             maxtasksperchild=1000
         )
-        self.ready_shared_datasets = []
-        return
+        refreshes_that_were_in_progress = list(self.refreshes_in_progress)
+        self.refreshes_in_progress = []
+        for dataset_metadata in refreshes_that_were_in_progress:
+            self.start_refreshing_shared_dataset(
+                shared_dataset_index=dataset_metadata["shared"],
+                offset=dataset_metadata["offset"],
+                dataset_index=dataset_metadata["real"],
+                transform=dataset_metadata["transform"],
+                wait=True
+            )
 
-    def _initialize_pool(self):
-        np.random.seed()
-        global shared_datasets
-        shared_datasets = self.shared_datasets
-        global datasets
-        datasets = self.datasets
-        global dtypes
-        dtypes = self.dtypes
-
-    def get_dataset(self, copy=False):
-        wait_start_time = None
+    def get_dataset(self, copy=False, timeout=5 * 60):
+        wait_start_time = time.time()
+        time_been_waiting = 0
         logging_time_threshold = 20
         logging_period = 1
         while len(self.ready_shared_datasets) == 0:
-            if wait_start_time is None:
-                wait_start_time = time.time()
-                print("Waiting for dataset...")
-            else:
-                time_been_waiting = time.time() - wait_start_time
-                if time_been_waiting > logging_time_threshold:
-                    print("been waiting for", time_been_waiting)
-                    logging_time_threshold += logging_period
+            time_been_waiting = time.time() - wait_start_time
+            if time_been_waiting > logging_time_threshold:
+                print("been waiting for", time_been_waiting)
+                logging_time_threshold += logging_period
+            if timeout:
+                if time_been_waiting > timeout:
+                    print("Still waiting on", self.refreshes_in_progress)
+                    self.reset_pool()
             time.sleep(0.01)
-        if wait_start_time is not None:
+        if time_been_waiting > 0:
             print("Waited for dataset for %05.2fs" % (time.time() - wait_start_time))
         dataset_metadata = self.ready_shared_datasets.pop(0)
         index_of_shared_dataset = dataset_metadata['shared']
@@ -196,9 +218,11 @@ class DataLoader(object):
                 .format(dataset_index, offset)
             logger.debug(message)
         input_slice, output_slice = get_slices_from_dataset_offset(offset, self.input_shape, self.output_shape)
-        dataset_metadata = dict(real=dataset_index, shared=shared_dataset_index, offset=offset)
+        dataset_metadata = dict(real=dataset_index, shared=shared_dataset_index, offset=offset, transform=transform)
+        self.refreshes_in_progress.append(dataset_metadata)
 
         def pool_callback(return_value):
+            self.refreshes_in_progress.remove(dataset_metadata)
             return self.ready_shared_datasets.append(dataset_metadata)
 
         kwargs_for_refresh = dict(
@@ -224,5 +248,9 @@ class DataLoader(object):
         return shared_dataset_index, async_result
 
     def destroy(self):
-        self.pool.terminate()
+        try:
+            self.pool.terminate()
+            self.pool.join()
+        except AttributeError:
+            pass
         return
