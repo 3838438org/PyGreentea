@@ -71,7 +71,14 @@ class ZarrArrayHandler(object):
         import time
         import zarr
         start = time.time()
-        z = zarr.open_array(self.path, mode=mode, shape=self.shape,
-                            chunks=self.chunk_shape, dtype=self.dtype, fill_value=0)
+        def _open():
+            z = zarr.open_array(self.path, mode=mode, shape=self.shape,
+                                chunks=self.chunk_shape, dtype=self.dtype, fill_value=0)
+            return z
+        try:
+            z = _open()
+        except KeyError:
+            self.initialize()
+            z = _open()
         yield z
-        print("opened array seconds:", time.time() - start)
+        print("opened array seconds:", time.time() - start, self.path, mode)
