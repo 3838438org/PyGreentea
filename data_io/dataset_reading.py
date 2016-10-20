@@ -125,7 +125,11 @@ def get_numpy_dataset(original_dataset, input_slice, output_slice, transform):
     image_slices = [slice(0, l) for l in original_dataset['data'].shape]
     image_slices[-n_spatial_dimensions:] = input_slice
     logger.debug("image_slices: {}".format(image_slices))
-    source_image = get_zero_padded_array_slice(original_dataset['data'], image_slices)
+    image_is_zero_padded = original_dataset.get("image_is_zero_padded", False)
+    if image_is_zero_padded:
+        source_image = original_dataset["data"][image_slices]
+    else:
+        source_image = get_zero_padded_array_slice(original_dataset['data'], image_slices)
     image = np.array(source_image, dtype=np.float32)
     image_scaling_factor = original_dataset.get('image_scaling_factor', None)
     if image_scaling_factor is None and source_image.dtype.kind in ('i', 'u'):  # integer, signed or unsigned
