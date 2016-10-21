@@ -44,12 +44,8 @@ class Processor(object):
             return x
 
         def generate_pred(array_like, target):
-            global net
-            try:
-                pred = process_array_with_net(net, array_like, target)
-            except NameError:
-                net = initialize_net()
-                pred = process_array_with_net(net, array_like, target)
+            net = initialize_net()
+            pred = process_array_with_net(net, array_like, target)
             return pred
 
         pred = generate_pred(array_like, target)
