@@ -82,3 +82,27 @@ class ZarrArrayHandler(object):
             z = _open()
         yield z
         print("opened array seconds:", time.time() - start, self.path, mode)
+
+
+class VoxelsAccessorArrayHandler(object):
+    def __init__(self, host, port, uuid, data_name):
+        self.host = host
+        self.port = port
+        self.uuid = uuid
+        self.data_name = data_name
+
+    @property
+    def shape(self):
+        with self.open_array() as a:
+            return a.shape
+
+    def dtype(self):
+        with self.open_array() as a:
+            return a.dtype
+
+    @contextmanager
+    def open_array(self, mode="r"):
+        from libdvid.voxels import VoxelsAccessor
+        host_port = ":".join([str(x) for x in (self.host, self.port)])
+        va = VoxelsAccessor(host_port, self.uuid, self.data_name)
+        yield va
