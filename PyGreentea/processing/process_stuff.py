@@ -19,16 +19,21 @@ from data_io.zero_padded_array import ZeroPaddedArray
 
 # model = "run_0723_11"
 # iteration = "30000"
-model = "run_0923_1"
-iteration = "630000"
+# model = "run_0923_1"
+# iteration = "630000"
+model = "run_0822_8"
+iteration = "370000"
+
 net_path = "/groups/turaga/home/grisaitisw/experiments/{}/net_test_big.prototxt".format(model)
 caffemodel_path = "/groups/turaga/home/grisaitisw/experiments/{}/net_iter_{}.caffemodel".format(model, iteration)
 net_output_shape = (116,) * 3
 
-image = dvision.DVIDDataInstance("slowpoke3", 32773, "e402c09ddd0f45e980d9be6e9fcb9bd0", "grayscale")
-dname = "fib25-e402c09"
+# image = dvision.DVIDDataInstance("slowpoke3", 32773, "e402c09ddd0f45e980d9be6e9fcb9bd0", "grayscale")
+# dname = "fib25-e402c09"
 # image = dvision.DVIDDataInstance("slowpoke3", 32770, "6a5a7387b4ce4333aa18d9c8d8647f58", "grayscale")
 # dname = "mb6-6a5a738"
+image = dvision.DVIDDataInstance("slowpoke2", 32770, "1598d862fcce47d9b504a67a38b3bfbf", "grayscale")
+dname = "cx-1598d86"
 # image = h5py.File("/groups/turaga/home/turagas/data/FlyEM/fibsem_medulla_7col/tstvol-520-2-h5/im_uint8.h5", "r")["main"]
 # dname = "tstvol-520-2-h5"
 # image_opener = H5PyDArrayHandler("FlyEM/fibsem_medulla_7col/{}/im_uint8".format(dname), "main", dname)
@@ -36,8 +41,8 @@ dname = "fib25-e402c09"
 image = ZeroPaddedArray(image)
 print(np.mean(image[0:10, 0:10, 0:10]))
 print(image.shape)
-batch_job_shape = (116 * 4,) * 3
-spatial_chunk_shape = (116, 116, 116)
+batch_job_shape = (148 * 4,) * 3
+spatial_chunk_shape = (148,) * 3
 chunk_offsets = chunkify_shape(image.shape, batch_job_shape, integral_block_shape=spatial_chunk_shape)
 print("chunk_offsets: ", chunk_offsets)
 

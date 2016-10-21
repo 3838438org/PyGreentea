@@ -1,4 +1,4 @@
-container_name=processing-distributed-run_0923_1-630000-fib25-4
+container_name=processing-distributed-run_0822_8-370000-cx-4
 
 echo $container_name
 
