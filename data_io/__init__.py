@@ -1,4 +1,4 @@
-from .logging import logger
+from .logger import logger
 
 from data_io.out_of_core_arrays import OutOfCoreArray
 from data_io.zero_padded_array import ZeroPaddedArray
