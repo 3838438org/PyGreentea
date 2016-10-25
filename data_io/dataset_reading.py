@@ -121,6 +121,7 @@ def get_outputs(original_dataset, output_slice):
 
 def get_numpy_dataset(original_dataset, input_slice, output_slice, transform):
     dataset_numpy = dict()
+    dataset_numpy["name"] = "{}_at_input_{}_and_output_{}".format(original_dataset.get("name", "Untitled"), input_slice, output_slice)
     n_spatial_dimensions = len(input_slice)
     image_slices = [slice(0, l) for l in original_dataset['data'].shape]
     image_slices[-n_spatial_dimensions:] = input_slice
@@ -170,6 +171,7 @@ def get_numpy_dataset(original_dataset, input_slice, output_slice, transform):
         dataset_numpy['components'] = components[de_dilation_slices]
         dataset_numpy['label'] = affinities[de_dilation_slices]
         dataset_numpy['mask'] = mask[de_dilation_slices]
+        dataset_numpy['nhood'] = original_dataset['nhood']
     return dataset_numpy
 
 
