@@ -10,6 +10,7 @@ import numpy as np
 from functools import reduce
 
 from data_io import logger
+from data_io.minibatches.augmentation import reflect_and_swap_dataset
 from .dataset_reading import get_numpy_dataset, reopen_dataset
 from .util import get_slices_from_dataset_offset
 
@@ -61,6 +62,9 @@ def update_shared_dataset(index_of_shared, index_of_which_dataset, input_slice,
                 dataset_is_ready = True
         else:
             dataset_is_ready = True
+    simple_augment = original_dataset.get("simple_augment", False)
+    if simple_augment:
+        dataset_numpy = simple_augment_minibatch(dataset_numpy)
     for key in shared_dataset:
         source_array = dataset_numpy[key].astype(dtypes[key])
         target_mp_array = shared_dataset[key]
@@ -72,6 +76,24 @@ def update_shared_dataset(index_of_shared, index_of_which_dataset, input_slice,
         index_of_shared, "%05.2fs" % (time.time() - start_time))
     logger.debug(message)
     return
+
+
+def simple_augment_minibatch(dataset_numpy):
+    message = "before simple aug {}... \t{: <25}{}\t{: <25}{}\t{: <25}{}" \
+        .format((0, 0, 0, 0),
+                dataset_numpy["data"].shape, dataset_numpy["data"].mean(),
+                dataset_numpy["components"].shape, dataset_numpy["components"].mean(),
+                dataset_numpy["mask"].shape, dataset_numpy["mask"].mean())
+    logger.debug(message)
+    reflectx, reflecty, reflectz, swapxy = np.random.randint(low=0, high=2, size=4)
+    dataset_numpy = reflect_and_swap_dataset(dataset_numpy, reflectx, reflecty, reflectz, swapxy)
+    message = "after  simple aug {}... \t{: <25}{}\t{: <25}{}\t{: <25}{}" \
+        .format((reflectx, reflecty, reflectz, swapxy),
+                dataset_numpy["data"].shape, dataset_numpy["data"].mean(),
+                dataset_numpy["components"].shape, dataset_numpy["components"].mean(),
+                dataset_numpy["mask"].shape, dataset_numpy["mask"].mean())
+    logger.debug(message)
+    return dataset_numpy
 
 
 class DataLoaderException(Exception):
