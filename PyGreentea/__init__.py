@@ -446,24 +446,23 @@ def init_testnet(test_net, trained_model=None, test_device=0):
 class MakeDatasetOffset(object):
     def __init__(self, input_dims, output_dims):
         self.input_dims = input_dims
-        input_padding = [in_ - out_ for in_, out_ in zip(input_dims, output_dims)]
-        self.border = [int(math.ceil(pad / float(2))) for pad in input_padding]
+        self.output_dims = output_dims
+        self.input_padding = tuple(in_ - out_ for in_, out_ in zip(input_dims, output_dims))
+        self.context = tuple(int(math.ceil(pad / float(2))) for pad in self.input_padding)
         self.dims = len(input_dims)
         self.random_state = np.random.RandomState()
 
     def calculate_offset_bounds(self, dataset):
-        shape_of_source_data = [min(d,c) for d, c in \
-                                zip(dataset['data'].shape[-self.dims:],
-                                    dataset['components'].shape[-self.dims:])]
-        offset_bounds = [(0, n - i) for n, i in zip(shape_of_source_data, self.input_dims)]
-        client_requested_zero_padding = dataset.get('zero_pad_inputs', False)
-        net_requires_zero_padding = any([max_ < min_ for min_, max_ in offset_bounds])
-        if net_requires_zero_padding or client_requested_zero_padding:
-            # then expand bounds to include borders
-            offset_bounds = [(min_ - border, max_ + border) for (min_, max_), border in zip(offset_bounds, self.border)]
-            if DEBUG and net_requires_zero_padding and not client_requested_zero_padding:
-                print("Zero padding even though the client didn't ask, "
-                      "because net input size exceeds source data shape")
+        source_extent = tuple(min(d, c) for d, c in zip(dataset['data'].shape[-self.dims:], dataset['components'].shape[-self.dims:]))
+        default_bounding_box = ((None, None),) * self.dims
+        bounding_box = dataset.get("bounding_box", default_bounding_box)
+        source_minima = tuple(bb[0] or 0 for bb in bounding_box)
+        source_maxima = tuple(bb[1] or se for bb, se in zip(bounding_box, source_extent))
+        minima_shifts = tuple(0 if bb[0] else c - i for bb, i, c in zip(bounding_box, self.input_dims, self.context))
+        maxima_shifts = tuple(-i if bb[1] else -c for bb, i, c in zip(bounding_box, self.input_dims, self.context))
+        offset_minima = tuple(s + shift for s, shift in zip(source_minima, minima_shifts))
+        offset_maxima = tuple(s + shift for s, shift in zip(source_maxima, maxima_shifts))
+        offset_bounds = tuple((min_, max_) for min_, max_ in zip(offset_minima, offset_maxima))
         return offset_bounds
 
     def __call__(self, data_array_list):
