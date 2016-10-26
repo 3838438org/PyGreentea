@@ -47,6 +47,7 @@ class DVIDDataInstance(object):
         else:
             shape = [max_ - min_ + 1 for min_, max_ in zip(min_point, max_point)]
             shape = tuple(shape)
+        shape = tuple(reversed(shape))
         return shape
 
     def __setitem__(self, slices, array):
@@ -55,8 +56,10 @@ class DVIDDataInstance(object):
         n_spatial_dims = len(slices)
         axes_str = '_'.join([str(a) for a in range(n_spatial_dims)])
         shape = [s.stop - s.start for s in slices]
+        shape = tuple(reversed(shape))
         shape_str = '_'.join(str(s) for s in shape)
         offset = [s.start for s in slices]
+        offset = tuple(reversed(offset))
         offset_str = '_'.join([str(o) for o in offset])
         #  <api URL>/node/<UUID>/<data name>/raw/0_1_2/<size>/<offset>[?queryopts]
         url = self.url_prefix + 'raw/' + axes_str + '/' + shape_str + '/' + offset_str
@@ -78,8 +81,10 @@ class DVIDDataInstance(object):
         n_spatial_dims = len(slices)
         axes_str = '_'.join([str(a) for a in range(n_spatial_dims)])
         shape = [s.stop - s.start for s in slices]
+        shape = tuple(reversed(shape))
         shape_str = '_'.join(str(s) for s in shape)
         offset = [s.start for s in slices]
+        offset = tuple(reversed(offset))
         offset_str = '_'.join([str(o) for o in offset])
         url = self.url_prefix + 'raw/' + axes_str + '/' + shape_str + '/' + offset_str + '/nD'
         response = dvid_requester.get(url)

@@ -2,8 +2,8 @@ import numpy as np
 
 
 def get_zero_padded_slice_from_array_by_offset(array, origin, shape):
-    assert len(array.shape) == len(origin)
-    assert len(array.shape) == len(shape)
+    assert len(array.shape) == len(origin), "{}, {}".format(array.shape, origin)
+    assert len(array.shape) == len(shape), "{}, {}".format(array.shape, shape)
     result = np.zeros(shape=shape, dtype=array.dtype)
     source_slices = tuple([
         slice(max(0, offset), min(slice_width+offset, source_width), 1)

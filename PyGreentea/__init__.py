@@ -17,6 +17,7 @@ import png
 from scipy import io
 
 import data_io
+from data_io.minibatches import augment_data_elastic, augment_data_simple
 import PyGreentea.network_generator as netgen
 from ext import caffe
 import visualization
@@ -104,95 +105,6 @@ def count_affinity(dataset):
 
 def border_reflect(dataset, border):
     return np.pad(dataset,((border, border)),'reflect')
-
-
-def augment_data_simple(dataset):
-    nset = len(dataset)
-    for iset in range(nset):
-        for reflectz in range(2):
-            for reflecty in range(2):
-                for reflectx in range(2):
-                    for swapxy in range(2):
-
-                        if reflectz==0 and reflecty==0 and reflectx==0 and swapxy==0:
-                            continue
-
-                        dataset.append({})
-                        dataset[-1]['name'] = dataset[iset]['name']+'_x'+str(reflectx)+'_y'+str(reflecty)+'_z'+str(reflectz)+'_xy'+str(swapxy)
-
-
-
-                        dataset[-1]['nhood'] = dataset[iset]['nhood']
-                        dataset[-1]['data'] = dataset[iset]['data'][:]
-                        dataset[-1]['components'] = dataset[iset]['components'][:]
-
-                        if reflectz:
-                            dataset[-1]['data']         = dataset[-1]['data'][::-1,:,:]
-                            dataset[-1]['components']   = dataset[-1]['components'][::-1,:,:]
-
-                        if reflecty:
-                            dataset[-1]['data']         = dataset[-1]['data'][:,::-1,:]
-                            dataset[-1]['components']   = dataset[-1]['components'][:,::-1,:]
-
-                        if reflectx:
-                            dataset[-1]['data']         = dataset[-1]['data'][:,:,::-1]
-                            dataset[-1]['components']   = dataset[-1]['components'][:,:,::-1]
-
-                        if swapxy:
-                            dataset[-1]['data']         = dataset[-1]['data'].transpose((0,2,1))
-                            dataset[-1]['components']   = dataset[-1]['components'].transpose((0,2,1))
-
-                        dataset[-1]['label'] = malis.seg_to_affgraph(dataset[-1]['components'],dataset[-1]['nhood'])
-
-                        dataset[-1]['reflectz']=reflectz
-                        dataset[-1]['reflecty']=reflecty
-                        dataset[-1]['reflectx']=reflectx
-                        dataset[-1]['swapxy']=swapxy
-    return dataset
-
-
-def augment_data_elastic(dataset,ncopy_per_dset):
-    dsetout = []
-    nset = len(dataset)
-    for iset in range(nset):
-        for icopy in range(ncopy_per_dset):
-            reflectz = np.random.rand()>.5
-            reflecty = np.random.rand()>.5
-            reflectx = np.random.rand()>.5
-            swapxy = np.random.rand()>.5
-
-            dataset.append({})
-            dataset[-1]['reflectz']=reflectz
-            dataset[-1]['reflecty']=reflecty
-            dataset[-1]['reflectx']=reflectx
-            dataset[-1]['swapxy']=swapxy
-
-            dataset[-1]['name'] = dataset[iset]['name']
-            dataset[-1]['nhood'] = dataset[iset]['nhood']
-            dataset[-1]['data'] = dataset[iset]['data'][:]
-            dataset[-1]['components'] = dataset[iset]['components'][:]
-
-            if reflectz:
-                dataset[-1]['data']         = dataset[-1]['data'][::-1,:,:]
-                dataset[-1]['components']   = dataset[-1]['components'][::-1,:,:]
-
-            if reflecty:
-                dataset[-1]['data']         = dataset[-1]['data'][:,::-1,:]
-                dataset[-1]['components']   = dataset[-1]['components'][:,::-1,:]
-
-            if reflectx:
-                dataset[-1]['data']         = dataset[-1]['data'][:,:,::-1]
-                dataset[-1]['components']   = dataset[-1]['components'][:,:,::-1]
-
-            if swapxy:
-                dataset[-1]['data']         = dataset[-1]['data'].transpose((0,2,1))
-                dataset[-1]['components']   = dataset[-1]['components'].transpose((0,2,1))
-
-            # elastic deformations
-
-            dataset[-1]['label'] = malis.seg_to_affgraph(dataset[-1]['components'],dataset[-1]['nhood'])
-
-    return dataset
 
 
 def slice_data(data, offsets, sizes):
@@ -358,11 +270,11 @@ def process(net, data_arrays, shapes=None, net_io=None, zero_pad_source_data=Tru
     using_data_loader = data_io.data_loader_should_be_used_with(data_arrays)
     if using_data_loader:
         processing_data_loader = data_io.DataLoader(
-            size=5,
+            size=11,
             datasets=data_arrays,
             input_shape=tuple(input_dims),
             output_shape=None,  # ignore labels
-            n_workers=3
+            n_workers=10,
         )
     dataset_offsets_to_process = generate_dataset_offsets_for_processing(
         net, data_arrays, process_borders=zero_pad_source_data)
@@ -376,7 +288,8 @@ def process(net, data_arrays, shapes=None, net_io=None, zero_pad_source_data=Tru
                   .format(i=source_dataset_index, o=list_of_offsets_to_process))
         # make a copy of that list for enqueueing purposes
         offsets_to_enqueue = list(list_of_offsets_to_process)
-        data_array = data_arrays[source_dataset_index]['data']
+        original_dataset = data_arrays[source_dataset_index]
+        data_array = original_dataset['data']
         if target_arrays is not None:
             pred_array = target_arrays[source_dataset_index]
         else:
@@ -430,14 +343,22 @@ def process(net, data_arrays, shapes=None, net_io=None, zero_pad_source_data=Tru
                         [0] + offsets,
                         [fmaps_in] + [output_dims[di] + input_padding[di] for di in range(dims)]
                     )
-            # process the chunk
-            output = process_input_data(net_io, data_slice)
-            print(offsets)
-            print(output.mean())
+            if "region_offset" in original_dataset:
+                region_offset = original_dataset["region_offset"]
+                print(offsets, [o + ro for o, ro in zip(offsets, region_offset)])
+            else:
+                print(offsets)
+            image_is_all_zeros = not np.any(data_slice)  # http://stackoverflow.com/a/23567941/781938
+            if image_is_all_zeros:
+                print("skipping because it's all zeros")
+            else:
+                # process the chunk
+                output = process_input_data(net_io, data_slice)
+                pads = [int(math.ceil(pad / float(2))) for pad in input_padding]
+                offsets_for_pred_array = [0] + [offset + pad for offset, pad in zip(offsets, pads)]
+                set_slice_data(pred_array, output, offsets_for_pred_array, [fmaps_out] + output_dims)
+                print(output.mean())
             offsets_that_have_been_processed.append(offsets)
-            pads = [int(math.ceil(pad / float(2))) for pad in input_padding]
-            offsets_for_pred_array = [0] + [offset + pad for offset, pad in zip(offsets, pads)]
-            set_slice_data(pred_array, output, offsets_for_pred_array, [fmaps_out] + output_dims)
             if using_data_loader and len(offsets_to_enqueue) > 0:
                 # start adding the next slice to the loader with index_of_shared_dataset
                 new_offsets = offsets_to_enqueue.pop(0)
@@ -525,24 +446,23 @@ def init_testnet(test_net, trained_model=None, test_device=0):
 class MakeDatasetOffset(object):
     def __init__(self, input_dims, output_dims):
         self.input_dims = input_dims
-        input_padding = [in_ - out_ for in_, out_ in zip(input_dims, output_dims)]
-        self.border = [int(math.ceil(pad / float(2))) for pad in input_padding]
+        self.output_dims = output_dims
+        self.input_padding = tuple(in_ - out_ for in_, out_ in zip(input_dims, output_dims))
+        self.context = tuple(int(math.ceil(pad / float(2))) for pad in self.input_padding)
         self.dims = len(input_dims)
         self.random_state = np.random.RandomState()
 
     def calculate_offset_bounds(self, dataset):
-        shape_of_source_data = [min(d,c) for d, c in \
-                                zip(dataset['data'].shape[-self.dims:],
-                                    dataset['components'].shape[-self.dims:])]
-        offset_bounds = [(0, n - i) for n, i in zip(shape_of_source_data, self.input_dims)]
-        client_requested_zero_padding = dataset.get('zero_pad_inputs', False)
-        net_requires_zero_padding = any([max_ < min_ for min_, max_ in offset_bounds])
-        if net_requires_zero_padding or client_requested_zero_padding:
-            # then expand bounds to include borders
-            offset_bounds = [(min_ - border, max_ + border) for (min_, max_), border in zip(offset_bounds, self.border)]
-            if DEBUG and net_requires_zero_padding and not client_requested_zero_padding:
-                print("Zero padding even though the client didn't ask, "
-                      "because net input size exceeds source data shape")
+        source_extent = tuple(min(d, c) for d, c in zip(dataset['data'].shape[-self.dims:], dataset['components'].shape[-self.dims:]))
+        default_bounding_box = ((None, None),) * self.dims
+        bounding_box = dataset.get("bounding_box", default_bounding_box)
+        source_minima = tuple(bb[0] or 0 for bb in bounding_box)
+        source_maxima = tuple(bb[1] or se for bb, se in zip(bounding_box, source_extent))
+        minima_shifts = tuple(0 if bb[0] else c - i for bb, i, c in zip(bounding_box, self.input_dims, self.context))
+        maxima_shifts = tuple(-i if bb[1] else -c for bb, i, c in zip(bounding_box, self.input_dims, self.context))
+        offset_minima = tuple(s + shift for s, shift in zip(source_minima, minima_shifts))
+        offset_maxima = tuple(s + shift for s, shift in zip(source_maxima, maxima_shifts))
+        offset_bounds = tuple((min_, max_) for min_, max_ in zip(offset_minima, offset_maxima))
         return offset_bounds
 
     def __call__(self, data_array_list):

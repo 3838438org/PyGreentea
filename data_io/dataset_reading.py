@@ -74,8 +74,8 @@ def get_outputs(original_dataset, output_slice):
             # assume no masking
             mask_array = np.ones_like(components_array, dtype=np.uint8)
             logger.debug("No mask provided. Setting to 1 where outputs exist.")
-    mask_dilation_steps = original_dataset.get('mask_dilation_steps', 1)
-    if mask_dilation_steps:
+    mask_dilation_steps = original_dataset.get('mask_dilation_steps', 0)
+    if mask_dilation_steps > 0:
         mask_array = ndimage.binary_dilation(mask_array, iterations=mask_dilation_steps)
     mask_array = mask_array.astype(np.uint8)
     mask_array = mask_array.reshape(mask_shape)
@@ -119,17 +119,21 @@ def get_outputs(original_dataset, output_slice):
     assert affinities_array.shape == affinities_shape, \
         "affinities_array.shape is {actual} but should be {desired}".format(
             actual=str(affinities_array.shape), desired=str(affinities_shape))
-    # dataset_numpy['mask'] = mask_array
     return components_array, affinities_array, mask_array
 
 
 def get_numpy_dataset(original_dataset, input_slice, output_slice, transform):
     dataset_numpy = dict()
+    dataset_numpy["name"] = "{}_at_input_{}_and_output_{}".format(original_dataset.get("name", "Untitled"), input_slice, output_slice)
     n_spatial_dimensions = len(input_slice)
     image_slices = [slice(0, l) for l in original_dataset['data'].shape]
     image_slices[-n_spatial_dimensions:] = input_slice
     logger.debug("image_slices: {}".format(image_slices))
-    source_image = get_zero_padded_array_slice(original_dataset['data'], image_slices)
+    image_is_zero_padded = original_dataset.get("image_is_zero_padded", False)
+    if image_is_zero_padded:
+        source_image = original_dataset["data"][image_slices]
+    else:
+        source_image = get_zero_padded_array_slice(original_dataset['data'], image_slices)
     image = np.array(source_image, dtype=np.float32)
     image_scaling_factor = original_dataset.get('image_scaling_factor', None)
     if image_scaling_factor is None and source_image.dtype.kind in ('i', 'u'):  # integer, signed or unsigned
@@ -170,6 +174,7 @@ def get_numpy_dataset(original_dataset, input_slice, output_slice, transform):
         dataset_numpy['components'] = components[de_dilation_slices]
         dataset_numpy['label'] = affinities[de_dilation_slices]
         dataset_numpy['mask'] = mask[de_dilation_slices]
+        dataset_numpy['nhood'] = original_dataset['nhood']
     return dataset_numpy
 
 
