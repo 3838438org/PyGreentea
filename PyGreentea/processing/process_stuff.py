@@ -1,12 +1,13 @@
 from __future__ import print_function
 
 import os
-from pprint import pprint
 import time
+from pprint import pprint
 
 import ipyparallel
 import numpy as np
 
+from executors.ipyparallel_executor import executor
 import data_io
 import dvision
 from PyGreentea.processing import Processor, ZarrAffinityHandler as AffinityHandler
@@ -97,13 +98,6 @@ affinity_opener = ZarrArrayHandler(
 affinity_arr = OutOfCoreArray(affinity_opener)
 # target = AffinitySaver(affinity_arr)
 affinity_chunks = [data_io.OffsettedArray(affinity_arr, (0,) + ic.offset, (3,) + ic.shape) for ic in image_chunks]
-
-ipp_client = ipyparallel.Client(
-    url_file="/groups/turaga/home/grisaitisw/.ipython/profile_greentea/security/ipcontroller-client.json",
-    timeout=60 * 60  # 1 hour
-)
-
-executor = ipp_client.load_balanced_view()
 
 processor = Processor(net_path, caffemodel_path, executor)
 
