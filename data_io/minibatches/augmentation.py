@@ -30,12 +30,15 @@ def reflect_and_swap_dataset(raw_dataset, reflectx, reflecty, reflectz, swapxy):
         if array_key in raw_dataset:
             array_copy = raw_dataset[array_key][:]
             array_copy = array_copy.reshape(array_copy.shape[-3:])
+            reflection_slices = [slice(None)] * 3
             if reflectz:
-                array_copy = array_copy[::-1, :, :]
+                reflection_slices[0] = slice(None, None, -1)
             if reflecty:
-                array_copy = array_copy[:, ::-1, :]
+                reflection_slices[1] = slice(None, None, -1)
             if reflectx:
-                array_copy = array_copy[:, :, ::-1]
+                reflection_slices[2] = slice(None, None, -1)
+            reflection_slices = tuple(reflection_slices)
+            array_copy = array_copy[reflection_slices]
             if swapxy:
                 array_copy = array_copy.transpose((0, 2, 1))
             new_dataset[array_key] = array_copy

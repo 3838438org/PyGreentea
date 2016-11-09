@@ -1,3 +1,5 @@
+from __future__ import print_function
+
 from contextlib import contextmanager
 
 
@@ -25,7 +27,6 @@ class H5PyArrayHandler(object):
         start = time.time()
         with h5py.File(self.path, mode=mode) as h5_f:
             yield h5_f[self.key]
-        print("opened array seconds:", time.time() - start)
 
 
 class H5PyDArrayHandler(object):
@@ -52,6 +53,7 @@ class H5PyDArrayHandler(object):
         except IOError, e:
             print(self.domain_name)
             raise e
+
 
 class ZarrArrayHandler(object):
     def __init__(self, path, key, name, shape, chunk_shape, dtype):
@@ -81,7 +83,6 @@ class ZarrArrayHandler(object):
             self.initialize()
             z = _open()
         yield z
-        print("opened array seconds:", time.time() - start, self.path, mode)
 
 
 class VoxelsAccessorArrayHandler(object):

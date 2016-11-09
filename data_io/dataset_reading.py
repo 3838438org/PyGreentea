@@ -11,6 +11,7 @@ from scipy import ndimage
 
 from data_io import logger
 import dvision
+from data_io.minibatches.augmentation import reflect_and_swap_dataset
 from dvision.component_filtering import get_good_components
 from .util import get_zero_padded_array_slice, replace_array_except_whitelist,\
     replace_infrequent_values, erode_value_blobs
@@ -163,18 +164,55 @@ def get_numpy_dataset(original_dataset, input_slice, output_slice, transform):
     if image.ndim == n_spatial_dimensions:
         new_shape = (1,) + image.shape
         image = image.reshape(new_shape)
-    dataset_numpy['data'] = image
     # load outputs if desired
     if output_slice is not None:
         component_erosion_steps = original_dataset.get('component_erosion_steps', 0)
         dilation_amount = 1 + component_erosion_steps
         dilated_output_slices = tuple([slice(s.start - dilation_amount, s.stop + dilation_amount, s.step) for s in output_slice])
         components, affinities, mask = get_outputs(original_dataset, dilated_output_slices)
+        mask_threshold = float(original_dataset.get('mask_threshold', 0))
+        mask_fraction_of_this_batch = np.mean(mask)
+        good_enough = mask_fraction_of_this_batch > mask_threshold
+        if not good_enough:
+            return None
+        simple_augment = original_dataset.get("simple_augment", False)
+        if simple_augment:
+            dataset_to_augment = dict(
+                name=dataset_numpy["name"],
+                data=image,
+                components=components,
+                mask=mask,
+                nhood=original_dataset['nhood']
+            )
+            augmented_dilated_dataset = simple_augment_minibatch(dataset_to_augment)
+            components = augmented_dilated_dataset["components"]
+            affinities = augmented_dilated_dataset["label"]
+            mask = augmented_dilated_dataset["mask"]
+            image = augmented_dilated_dataset["data"]
         de_dilation_slices = (Ellipsis,) + tuple([slice(dilation_amount, -dilation_amount) for _ in output_slice])
         dataset_numpy['components'] = components[de_dilation_slices]
         dataset_numpy['label'] = affinities[de_dilation_slices]
         dataset_numpy['mask'] = mask[de_dilation_slices]
         dataset_numpy['nhood'] = original_dataset['nhood']
+    dataset_numpy['data'] = image
+    return dataset_numpy
+
+
+def simple_augment_minibatch(dataset_numpy):
+    message = "before simple aug {}... \t{: <25}{}\t{: <25}{}\t{: <25}{}" \
+        .format((0, 0, 0, 0),
+                dataset_numpy["data"].shape, dataset_numpy["data"].mean(),
+                dataset_numpy["components"].shape, dataset_numpy["components"].mean(),
+                dataset_numpy["mask"].shape, dataset_numpy["mask"].mean())
+    logger.debug(message)
+    reflectx, reflecty, reflectz, swapxy = np.random.randint(low=0, high=2, size=4)
+    dataset_numpy = reflect_and_swap_dataset(dataset_numpy, reflectx, reflecty, reflectz, swapxy)
+    message = "after  simple aug {}... \t{: <25}{}\t{: <25}{}\t{: <25}{}" \
+        .format((reflectx, reflecty, reflectz, swapxy),
+                dataset_numpy["data"].shape, dataset_numpy["data"].mean(),
+                dataset_numpy["components"].shape, dataset_numpy["components"].mean(),
+                dataset_numpy["mask"].shape, dataset_numpy["mask"].mean())
+    logger.debug(message)
     return dataset_numpy
 
 
