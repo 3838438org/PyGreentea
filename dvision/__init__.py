@@ -26,6 +26,6 @@ dtype_mappings = {
 }
 
 from .data_instance import DVIDDataInstance
-from .region_of_interest import RegionOfInterest
+from .region_of_interest import DVIDRegionOfInterest
 from .repo import DVIDRepo
 from .connection import DVIDConnection
