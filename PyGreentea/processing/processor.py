@@ -1,4 +1,3 @@
-
 class Processor(object):
     def __init__(self, net_path, caffemodel_path, executor):
         '''
@@ -49,28 +48,12 @@ class Processor(object):
             return pred
 
         pred = generate_pred(array_like, target)
-        # pred = generate_fake(array_like)
-        # if target:
-        #     if array_like is not None:
-        #         target.save(pred, array_like.offset)
-        #     else:
-        #         target.save(pred, (0, 0, 0))
         pred_summary = dict(pred_shape=pred.shape,
                             source_offset=array_like.offset,
                             source_shape=array_like.shape)
         return pred_summary,
 
-    def process(self, source, target=None):
+    def process(self, source, target):
         async_result = self.executor.apply_async(self.import_and_process, self.net_path, self.caffemodel_path, source, target)
         return async_result
 
-# rng = np.random.RandomState(seed=0)
-# x = rng.uniform(size=np.prod(shape))
-# x = x.astype(np.float32)
-# x = x.reshape(shape)
-
-
-# import h5py
-# pred_name = "-".join(["{0:03d}_{1:03d}".format(x, x + l) for x, l in zip(array_like.offset, array_like.shape)]) + ".h5"
-# with h5py.File("/nobackup/turaga/grisaitisw/tmp/{}".format(pred_name), "w") as f:
-#     f.create_dataset("main", data=pred)

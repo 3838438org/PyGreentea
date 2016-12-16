@@ -9,11 +9,9 @@ import numpy as np
 
 from executors.ipyparallel_executor import executor
 import data_io
-import dvision
-from PyGreentea.processing import Processor, ZarrAffinityHandler as AffinityHandler
-from PyGreentea.processing.array_handlers import AffinitySaver
+from PyGreentea.processing import Processor
 from data_io import OutOfCoreArray
-from data_io.out_of_core_arrays import H5PyDArrayHandler, ZarrArrayHandler
+from data_io.out_of_core_arrays import ZarrArrayHandler
 from data_io.util.shape_chunking import chunkify_shape
 from data_io.zero_padded_array import ZeroPaddedArray
 
@@ -78,13 +76,7 @@ affinity_shape = (3,) + image.shape
 affinity_chunk_shape = (3,) + spatial_chunk_shape
 print(spatial_chunk_shape, image.shape, affinity_shape, affinity_chunk_shape)
 print("chunks are size", np.prod(affinity_chunk_shape) * 4 / 100000, "MB")
-
 root_dir = "/scratch/affinities"
-# affinity_path = os.path.join(root_dir, model, iteration, dname + ".zarr")
-#
-# target = AffinityHandler(dname, model, iteration, affinity_shape,
-#                          affinity_chunk_shape, root_dir="/scratch/affinities")
-
 timestr = time.strftime("-%Y.%m.%d-%H.%M.%S")
 
 affinity_opener = ZarrArrayHandler(
@@ -96,7 +88,6 @@ affinity_opener = ZarrArrayHandler(
     dtype=np.float32
 )
 affinity_arr = OutOfCoreArray(affinity_opener)
-# target = AffinitySaver(affinity_arr)
 affinity_chunks = [data_io.OffsettedArray(affinity_arr, (0,) + ic.offset, (3,) + ic.shape) for ic in image_chunks]
 
 processor = Processor(net_path, caffemodel_path, executor)
