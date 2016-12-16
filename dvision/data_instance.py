@@ -45,6 +45,9 @@ class DVIDDataInstance(object):
         if max_point is None:
             shape = (0, 0, 0)
         else:
+            if any([min_ != 0 for min_ in min_point]):
+                import warnings
+                warnings.warn("MinPoint is {}, not (0, 0, 0)".format(min_point))
             shape = [max_ - min_ + 1 for min_, max_ in zip(min_point, max_point)]
             shape = tuple(shape)
         shape = tuple(reversed(shape))
