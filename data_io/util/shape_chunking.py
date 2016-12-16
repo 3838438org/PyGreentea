@@ -22,4 +22,4 @@ def chunkify_shape(shape, chunk_shape, integral_block_shape=None):
             offsets[i] = inner_offsets + edge_offset
         else:
             offsets[i] = inner_offsets
-    return tuple(itertools.product(*offsets))
+    return itertools.product(*offsets)
