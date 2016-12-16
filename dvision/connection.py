@@ -1,4 +1,4 @@
-from .repo import DVIDRepo
+from .repository import DVIDRepository
 from .requester import DVIDRequester
 
 
@@ -21,4 +21,4 @@ class DVIDConnection(object):
         )
         assert response.ok, (response.status, response.text)
         root_uuid = response.json()['root']
-        return DVIDRepo(self.hostname, self.port, root_uuid)
+        return DVIDRepository(self.hostname, self.port, root_uuid)

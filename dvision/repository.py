@@ -3,7 +3,7 @@ import warnings
 from dvision import dvid_requester, DVIDDataInstance
 
 
-class DVIDRepo(object):
+class DVIDRepository(object):
     def __init__(self, hostname, port, root_uuid=None):
         self.hostname = hostname
         self.port = port
