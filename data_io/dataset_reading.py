@@ -183,6 +183,31 @@ def get_raw_components(original_dataset, output_slices):
     return components_raw
 
 
+def get_z_distorted_image(image_array, probability_zero, probability_low_contrast, contrast_scalar):
+    z_axis_number = image_array.ndim - 3  # works with shapes like (1, Z, Y, X)
+    z_length = image_array.shape[z_axis_number]
+    probs = np.random.uniform(size=z_length)
+    setting_to_zero_for = probs < probability_zero
+    reducing_contrast_for = np.logical_and(
+        probability_zero < probs,
+        probs < (probability_low_contrast + probability_zero)
+    )
+    for z in range(z_length):
+        z_slices = [slice(None) for _ in image_array.shape]
+        z_slices[z_axis_number] = z
+        z_slices = tuple(z_slices)
+        if setting_to_zero_for[z]:
+            image_array[z_slices] = 0
+        elif reducing_contrast_for[z]:
+            z_array = image_array[z_slices]
+            z_mean = z_array.mean()
+            z_array = z_array - z_mean
+            z_array = z_array * contrast_scalar
+            z_array = z_array + z_mean
+            image_array[z_slices] = z_array
+    return image_array
+
+
 def get_input(original_dataset, input_slice, transform):
     n_spatial_dimensions = len(input_slice)
     image_slices = [slice(0, l) for l in original_dataset['data'].shape]
@@ -219,6 +244,14 @@ def get_input(original_dataset, input_slice, transform):
             image = image + np.random.uniform(low=lo, high=hi)
         else:
             logger.debug("source data doesn't have 'transform' attribute.")
+    image_distortion_z_axis = original_dataset.get("image_distortion_z_axis", None)
+    if image_distortion_z_axis:
+        assert isinstance(image_distortion_z_axis, dict)
+        probability_zero = image_distortion_z_axis.get("probability_zero", 0.0)
+        probability_low_contrast = image_distortion_z_axis.get("probability_low_contrast", 0.0)
+        contrast_scalar = image_distortion_z_axis.get("contrast_scalar", 1.0)
+        assert probability_low_contrast + probability_zero < 1.0
+        image = get_z_distorted_image(image, probability_zero, probability_low_contrast, contrast_scalar)
     if image.ndim == n_spatial_dimensions:
         new_shape = (1,) + image.shape
         image = image.reshape(new_shape)
