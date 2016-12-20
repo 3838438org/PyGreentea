@@ -120,9 +120,7 @@ def get_outputs(original_dataset, output_slice):
     return components_array, affinities_array, mask_array
 
 
-def get_numpy_dataset(original_dataset, input_slice, output_slice, transform):
-    dataset_numpy = dict()
-    dataset_numpy["name"] = "{}_at_input_{}_and_output_{}".format(original_dataset.get("name", "Untitled"), input_slice, output_slice)
+def get_input(original_dataset, input_slice, transform):
     n_spatial_dimensions = len(input_slice)
     image_slices = [slice(0, l) for l in original_dataset['data'].shape]
     image_slices[-n_spatial_dimensions:] = input_slice
@@ -161,6 +159,13 @@ def get_numpy_dataset(original_dataset, input_slice, output_slice, transform):
     if image.ndim == n_spatial_dimensions:
         new_shape = (1,) + image.shape
         image = image.reshape(new_shape)
+    return image
+
+
+def get_numpy_dataset(original_dataset, input_slice, output_slice, transform):
+    dataset_numpy = dict()
+    dataset_numpy["name"] = "{}_at_input_{}_and_output_{}".format(original_dataset.get("name", "Untitled"), input_slice, output_slice)
+    image = get_input(original_dataset, input_slice, transform)
     # load outputs if desired
     if output_slice is not None:
         component_erosion_steps = original_dataset.get('component_erosion_steps', 0)
