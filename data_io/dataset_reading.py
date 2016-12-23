@@ -58,10 +58,10 @@ def get_outputs(original_dataset, output_slices):
     mask_raw = get_raw_mask(original_dataset, output_slices, components_raw)
     components = remove_named_components(original_dataset, components_raw)
     components = remove_small_components(original_dataset, components)
+    mask_euclidean = get_euclidean_mask(original_dataset, components, mask_raw)
     components = erode_components(original_dataset, output_shape, components, mask_raw)
     components, affinities = \
         compress_and_shift_up_components(original_dataset, output_shape, components)
-    mask_euclidean = get_euclidean_mask(original_dataset, components, mask_raw)
     components, affinities, mask_euclidean = check_and_update_shapes(components, affinities, mask_euclidean, output_shape)
     return components, affinities, mask_euclidean
 
