@@ -26,27 +26,12 @@ except ImportError:
     pass
 
 
-def condense_and_split_components(components, output_shape, malis_neighborhood):
-    '''
-    :param components: numpy array with component values
-    :param output_shape: tuple with spatial dimensions of components
-    :param malis_neighborhood: array definition of malis neighborhood
-    :return: numpy array of same shape as components, with new component values
-    '''
-    original_shape = components.shape
-    components_for_malis = components.reshape(output_shape)
-    affinities = malis.seg_to_affgraph(components_for_malis, malis_neighborhood)
-    recomputed_components, _ = malis.connected_components_affgraph(affinities.astype(np.int32), malis_neighborhood)
-    recomputed_components = recomputed_components.reshape(original_shape)
-    return recomputed_components
-
-
 def shift_up_component_values(components):
     '''
     :param components: numpy array with component values
     :return: numpy array of same shape as components, with new component values
     '''
-    nonzero_components = np.not_equal(components, 0)
+    nonzero_components = np.ma.not_equal(components, 0)
     components += 1
     components *= nonzero_components
     return components
@@ -56,45 +41,64 @@ def get_outputs(original_dataset, output_slices):
     output_shape = tuple([slice_.stop - slice_.start for slice_ in output_slices])
     components_raw = get_raw_components(original_dataset, output_slices)
     mask_raw = get_raw_mask(original_dataset, output_slices, components_raw)
-    components = remove_named_components(original_dataset, components_raw)
-    components = remove_small_components(original_dataset, components)
-    mask_euclidean = get_euclidean_mask(original_dataset, components, mask_raw)
-    components = erode_components(original_dataset, output_shape, components, mask_raw)
-    components, affinities = \
-        compress_and_shift_up_components(original_dataset, output_shape, components)
-    components, affinities, mask_euclidean = check_and_update_shapes(components, affinities, mask_euclidean, output_shape)
-    return components, affinities, mask_euclidean
+    mask_known = get_known_mask(original_dataset, components_raw)
+    mask_unknown = get_unknown_mask(original_dataset, components_raw, mask_raw, mask_known)
+    components_eroded = erode_components(original_dataset, output_shape, components_raw, mask_unknown)
+    mask_all = mask_known * mask_unknown
+    components_positive = components_eroded * mask_all
+    components_positive, affinities = \
+        compress_and_shift_up_components(original_dataset, output_shape, components_positive)
+    components_negative = components_positive + np.ma.not_equal((1 - mask_known) * components_eroded, 0)
+    mask_euclidean = get_euclidean_mask(original_dataset, mask_raw, mask_all)
+    components_positive, components_negative, affinities, mask_euclidean = \
+        check_and_update_shapes(components_positive, components_negative, affinities, mask_euclidean, output_shape)
+    return components_positive, components_negative, affinities, mask_euclidean
 
 
-def get_euclidean_mask(original_dataset, components, mask_raw):
+def get_unknown_mask(original_dataset, components_raw, mask_raw, mask_known):
+    mask_unknown = mask_raw
+    minimum_component_size = original_dataset.get('minimum_component_size', 0)
+    if minimum_component_size > 0:
+        components_filtered = replace_infrequent_values(components_raw, minimum_component_size, 0)
+        not_a_small_fragment = np.ma.equal(components_raw, components_filtered)
+        mask_unknown = np.ma.logical_and(mask_unknown, not_a_small_fragment)
+    known_masked_out_stuff = np.ma.logical_not(mask_known)
+    mask_unknown = np.ma.logical_or(mask_unknown, known_masked_out_stuff)
+    mask_unknown = mask_unknown.astype(np.uint8)
+    return mask_unknown
+
+
+def get_known_mask(original_dataset, components_raw):
+    components_filtered = remove_named_components(original_dataset, components_raw)
+    mask_excluded_components = np.ma.equal(components_raw, components_filtered)
+    mask_excluded_components = mask_excluded_components.astype(np.uint8)
+    return mask_excluded_components
+
+
+def get_euclidean_mask(original_dataset, mask_raw, mask_all):
     if "mask" in original_dataset:
         # if the user provided a mask, then always use that
         return mask_raw
-    mask_euclidean = np.not_equal(components, 0)
-    mask_euclidean = np.logical_and(mask_euclidean, mask_raw)
-    mask_euclidean = dilate_mask(original_dataset, mask_euclidean)
-    mask_euclidean = mask_euclidean.astype(np.uint8)
-    return mask_euclidean
+    mask = mask_all
+    mask_dilation_steps = original_dataset.get('mask_dilation_steps', 0)
+    if mask_dilation_steps > 0:
+        mask = ndimage.binary_dilation(mask, iterations=mask_dilation_steps)
+    mask = mask.astype(np.uint8)
+    return mask
 
 
-def check_and_update_shapes(components, affinities, mask, output_shape):
+def check_and_update_shapes(components_positive, components_negative, affinities, mask, output_shape):
     n_spatial_dimensions = len(output_shape)
     components_shape = (1,) + output_shape
     affinities_shape = (n_spatial_dimensions,) + output_shape
     mask_shape = (1,) + output_shape
-    components = components.reshape(components_shape)
+    components_positive = components_positive.reshape(components_shape)
+    components_negative = components_negative.reshape(components_shape)
     assert affinities.shape == affinities_shape, \
         "affinities.shape is {actual} but should be {desired}".format(
             actual=str(affinities.shape), desired=str(affinities_shape))
     mask = mask.reshape(mask_shape)
-    return components, affinities, mask
-
-
-def dilate_mask(original_dataset, mask):
-    mask_dilation_steps = original_dataset.get('mask_dilation_steps', 0)
-    if mask_dilation_steps > 0:
-        mask = ndimage.binary_dilation(mask, iterations=mask_dilation_steps)
-    return mask
+    return components_positive, components_negative, affinities, mask
 
 
 def get_raw_mask(original_dataset, output_slice, components):
@@ -105,7 +109,7 @@ def get_raw_mask(original_dataset, output_slice, components):
         components_are_from_dvid = source_class in dvid_classes
         if components_are_from_dvid:
             # infer mask values: 1 if component is nonzero, 0 otherwise
-            mask = np.not_equal(components, 0)
+            mask = np.ma.not_equal(components, 0)
             logger.debug("No mask provided. Setting to 1 where components != 0.")
         else:
             # assume no masking
@@ -140,13 +144,6 @@ def erode_components(original_dataset, output_shape, components, mask_raw):
     return components
 
 
-def remove_small_components(original_dataset, components):
-    minimum_component_size = original_dataset.get('minimum_component_size', 0)
-    if minimum_component_size > 0:
-        components = replace_infrequent_values(components, minimum_component_size, 0)
-    return components
-
-
 def remove_named_components(original_dataset, components):
     exclude_strings = original_dataset.get('body_names_to_exclude', [])
     source_class = type(original_dataset['components'])
@@ -158,20 +155,6 @@ def remove_named_components(original_dataset, components):
         components = replace_array_except_whitelist(components, 0, components_to_keep)
         logger.debug("components after: {}".format(list(np.unique(components))))
     return components
-
-
-def get_affinities(original_dataset, output_slice, affinities_from_components):
-    if 'label' in original_dataset:
-        label_shape = original_dataset['label'].shape
-        label_slices = [slice(0, l) for l in label_shape]
-        n_spatial_dimensions = len(output_slice)
-        label_slices[-n_spatial_dimensions:] = output_slice
-        affinities = get_zero_padded_array_slice(original_dataset['label'], label_slices)
-    else:
-        # compute affinities from components
-        logger.debug("Computing affinity labels from components because 'label' wasn't provided in data source.")
-        affinities = affinities_from_components
-    return affinities
 
 
 def get_raw_components(original_dataset, output_slices):
@@ -268,7 +251,7 @@ def get_numpy_dataset(original_dataset, input_slice, output_slice, transform):
         dilation_amount = 1 + component_erosion_steps
         dilated_output_slices = tuple(slice(s.start - dilation_amount, s.stop + dilation_amount, s.step) for s in output_slice)
         de_dilation_slices = (Ellipsis,) + tuple(slice(dilation_amount, -dilation_amount) for _ in output_slice)
-        components, affinities, mask = get_outputs(original_dataset, dilated_output_slices)
+        components, components_negative, affinities, mask = get_outputs(original_dataset, dilated_output_slices)
         mask_threshold = float(original_dataset.get('mask_threshold', 0))
         mask_fraction_of_this_batch = np.mean(mask[de_dilation_slices])
         good_enough = mask_fraction_of_this_batch > mask_threshold
@@ -280,15 +263,18 @@ def get_numpy_dataset(original_dataset, input_slice, output_slice, transform):
                 name=dataset_numpy["name"],
                 data=image,
                 components=components,
+                components_negative=components_negative,
                 mask=mask,
                 nhood=original_dataset['nhood']
             )
             augmented_dilated_dataset = simple_augment_minibatch(dataset_to_augment)
             components = augmented_dilated_dataset["components"]
+            components_negative = augmented_dilated_dataset["components_negative"]
             affinities = augmented_dilated_dataset["label"]
             mask = augmented_dilated_dataset["mask"]
             image = augmented_dilated_dataset["data"]
         dataset_numpy['components'] = components[de_dilation_slices]
+        dataset_numpy['components_negative'] = components_negative[de_dilation_slices]
         dataset_numpy['label'] = affinities[de_dilation_slices]
         dataset_numpy['mask'] = mask[de_dilation_slices]
         dataset_numpy['nhood'] = original_dataset['nhood']
@@ -301,6 +287,7 @@ def simple_augment_minibatch(dataset_numpy):
         .format((0, 0, 0, 0),
                 dataset_numpy["data"].shape, dataset_numpy["data"].mean(),
                 dataset_numpy["components"].shape, dataset_numpy["components"].mean(),
+                dataset_numpy["components_negative"].shape, dataset_numpy["components_negative"].mean(),
                 dataset_numpy["mask"].shape, dataset_numpy["mask"].mean())
     logger.debug(message)
     reflectx, reflecty, reflectz, swapxy = np.random.randint(low=0, high=2, size=4)
@@ -309,6 +296,7 @@ def simple_augment_minibatch(dataset_numpy):
         .format((reflectx, reflecty, reflectz, swapxy),
                 dataset_numpy["data"].shape, dataset_numpy["data"].mean(),
                 dataset_numpy["components"].shape, dataset_numpy["components"].mean(),
+                dataset_numpy["components_negative"].shape, dataset_numpy["components_negative"].mean(),
                 dataset_numpy["mask"].shape, dataset_numpy["mask"].mean())
     logger.debug(message)
     return dataset_numpy

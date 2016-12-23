@@ -26,7 +26,7 @@ def reflect_and_swap_dataset(raw_dataset, reflectx, reflecty, reflectz, swapxy):
     new_dataset['reflecty'] = reflecty
     new_dataset['reflectx'] = reflectx
     new_dataset['swapxy'] = swapxy
-    for array_key in ["data", "components", "mask"]:
+    for array_key in ["data", "components", "components_negative", "mask"]:
         if array_key in raw_dataset:
             array_copy = raw_dataset[array_key][:]
             array_copy = array_copy.reshape(array_copy.shape[-3:])

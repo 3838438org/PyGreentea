@@ -89,18 +89,20 @@ class DataLoader(object):
         self.shapes = {
             'data': (1,) + self.input_shape,
             'components': (1,) + self.output_shape,
+            'components_negative': (1,) + self.output_shape,
             'label': (3,) + self.output_shape,
             'mask': (1,) + self.output_shape,
         }
         self.dtypes = {
             'data': np.float32,
             'components': np.int32,
+            'components_negative': np.int32,
             'label': np.int32,
             'mask': np.uint8,
         }
         self.keys_to_ignore = []
         if self.outputs_are_ignored:
-            self.keys_to_ignore = ['label', 'components', 'mask']
+            self.keys_to_ignore = ['label', 'components', 'components_negative', 'mask']
             for output_key in self.keys_to_ignore:
                 self.dtypes.pop(output_key)
                 self.shapes.pop(output_key)

@@ -565,6 +565,7 @@ def train(solver, test_net, data_arrays, train_data_arrays, options):
             components_slice, ccSizes = malis.connected_components_affgraph(label_slice.astype(np.int32), dataset['nhood'])
             components_shape = (1,) + tuple(output_dims)
             components_slice = components_slice.reshape(components_shape)
+            components_negative = None
             mask_slice = np.ones_like(components_slice, dtype=np.uint8)
             mask_mean = 1
             if 'transform' in dataset:
@@ -578,14 +579,16 @@ def train(solver, test_net, data_arrays, train_data_arrays, options):
                 lo, hi = dataset['transform']['shift']
                 data_slice = data_slice + np.random.uniform(low=lo, high=hi)
         else:
-            dataset, index_of_shared_dataset = training_data_loader.get_dataset()
-            data_slice = dataset['data']
-            label_slice = dataset['label']
+            data_loader_minibatch, index_of_shared_dataset = training_data_loader.get_dataset()
+            data_slice = data_loader_minibatch['data']
+            label_slice = data_loader_minibatch['label']
             if DEBUG:
-                print("Training with next dataset in data loader, which has offset", dataset['offset'])
-            mask_slice = dataset['mask']
+                print("Training with next dataset in data loader, which has offset", data_loader_minibatch['offset'])
+            mask_slice = data_loader_minibatch['mask']
             mask_mean = np.mean(mask_slice)
-            components_slice = dataset['components']
+            components_slice = data_loader_minibatch['components']
+            components_negative = data_loader_minibatch['components_negative']
+            dataset = data_loader_minibatch
         assert data_slice.shape == (fmaps_in,) + tuple(input_dims)
         assert label_slice.shape == (fmaps_out,) + tuple(output_dims)
         assert mask_slice.shape == (1,) + tuple(output_dims)
@@ -600,8 +603,8 @@ def train(solver, test_net, data_arrays, train_data_arrays, options):
             except AttributeError:
                 use_simple_malis_components = mask_mean == 1
             if use_simple_malis_components:
-                components_negative_slice = components_slice
-            else:
+                components_negative = components_slice
+            elif components_negative is None:
                 '''
                 assumes that...
                 * mask_slice is 1 at voxels containing good components, with a small dilation
@@ -613,10 +616,14 @@ def train(solver, test_net, data_arrays, train_data_arrays, options):
                 # assert mask_inverse.shape == components_slice.shape
                 mask_inverse = mask_inverse.astype(components_slice.dtype)
                 # assert mask_inverse.dtype == components_slice.dtype
-                components_negative_slice = components_slice + mask_inverse
-            components_positive_slice = components_slice
+                components_negative = components_slice + mask_inverse
+            else:
+                # assert components_negative.shape == components_slice.shape
+                # assert components_negative.dtype == components_slice.dtype
+                pass
+            components_positive = components_slice
             components_malis_slice = np.concatenate(
-                (components_negative_slice, components_positive_slice),
+                (components_negative, components_positive),
                 axis=0)
             net_io.setInputs([data_slice, label_slice, components_malis_slice, data_arrays[0]['nhood']])
         elif options.loss_function == 'euclid':
@@ -674,8 +681,8 @@ def train(solver, test_net, data_arrays, train_data_arrays, options):
             dataset_to_show['label'] = label_slice
             dataset_to_show['mask'] = mask_slice.reshape(output_dims)
             try:
-                dataset_to_show['components_negative'] = components_negative_slice.reshape(output_dims)
-                dataset_to_show['components_positive'] = components_positive_slice.reshape(output_dims)
+                dataset_to_show['components_negative'] = components_negative.reshape(output_dims)
+                dataset_to_show['components_positive'] = components_positive.reshape(output_dims)
             except UnboundLocalError:
                 # variables weren't declared, because malis isn't being computed
                 pass

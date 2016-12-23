@@ -116,15 +116,15 @@ def showme(dset, z):
     a = ax[2, 1]
     a.set_xlim(0, max_shape[1])
     a.set_ylim(0, max_shape[2])
-    if 'components_negative' in dset:
+    if 'error_scale_slice' in dset:
+        error_scale_slice = np.transpose(np.squeeze(dset['error_scale_slice'][(slice(0, 3),) + slices]), (2, 1, 0))
+        a.imshow(error_scale_slice, cmap='gray', interpolation='nearest', extent=true_label_extent)
+        a.set_title('error_scale_slice', fontsize=title_font_size)
+    elif 'components_negative' in dset:
         components_negative = np.transpose(np.squeeze(dset['components_negative'][slices]), (1, 0))
         segments_as_color = label2rgb(components_negative, bg_label=0)
         a.imshow(segments_as_color, interpolation='nearest', extent=true_label_extent)
         a.set_title('components_negative:\ntrue components with zero-moat and 1s', fontsize=title_font_size)
-    elif 'error_scale_slice' in dset:
-        error_scale_slice = np.transpose(np.squeeze(dset['error_scale_slice'][(slice(0, 3),) + slices]), (2, 1, 0))
-        a.imshow(error_scale_slice, cmap='gray', interpolation='nearest', extent=true_label_extent)
-        a.set_title('error_scale_slice', fontsize=title_font_size)
     a.axis('off')
 
     a = ax[2, 2]
