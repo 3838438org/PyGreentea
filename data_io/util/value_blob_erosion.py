@@ -13,27 +13,27 @@ def erode_value_blobs(array, steps=1, values_to_ignore=tuple(), new_value=0, onl
     masked = None
     if mask is not None:
         mask = mask.reshape(array.shape)
-        masked = np.equal(mask, 0)
+        masked = np.ma.equal(mask, 0)
     for unique_value in unique_values:
         entries_of_this_value = array == unique_value
         if unique_value in values_to_ignore:
-            all_entries_to_keep = np.logical_or(entries_of_this_value, all_entries_to_keep)
+            all_entries_to_keep = np.ma.logical_or(entries_of_this_value, all_entries_to_keep)
         else:
             # Assume that masked out values are the same as the label we are
             # eroding in this iteration. This ensures that at the boundary to
             # a masked region the value blob is not shrinking.
             if masked is not None:
-                entries_of_this_value = np.logical_or(entries_of_this_value, masked)
+                entries_of_this_value = np.ma.logical_or(entries_of_this_value, masked)
             eroded_unique_indicator = ndimage.binary_erosion(
                 entries_of_this_value,
                 structure=erosion_structure,
                 iterations=steps,
                 border_value=1,
             )
-            all_entries_to_keep = np.logical_or(eroded_unique_indicator, all_entries_to_keep)
+            all_entries_to_keep = np.ma.logical_or(eroded_unique_indicator, all_entries_to_keep)
     result = array * all_entries_to_keep
     if new_value != 0:
-        eroded_entries = np.logical_not(all_entries_to_keep)
+        eroded_entries = np.ma.logical_not(all_entries_to_keep)
         new_values = new_value * eroded_entries
         result += new_values
     return result
