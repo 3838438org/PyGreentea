@@ -52,72 +52,131 @@ def shift_up_component_values(components):
     return components
 
 
-def get_outputs(original_dataset, output_slice):
-    output_shape = tuple([slice_.stop - slice_.start for slice_ in output_slice])
-    n_spatial_dimensions = len(output_slice)
+def get_outputs(original_dataset, output_slices):
+    output_shape = tuple([slice_.stop - slice_.start for slice_ in output_slices])
+    components_raw = get_raw_components(original_dataset, output_slices)
+    mask_raw = get_raw_mask(original_dataset, output_slices, components_raw)
+    components = remove_named_components(original_dataset, components_raw)
+    components = remove_small_components(original_dataset, components)
+    components = erode_components(original_dataset, components)
+    components, affinities = \
+        compress_and_shift_up_components(original_dataset, output_shape, components)
+    mask_euclidean = get_euclidean_mask(original_dataset, components, mask_raw)
+    components, affinities, mask_euclidean = check_and_update_shapes(components, affinities, mask_euclidean, output_shape)
+    return components, affinities, mask_euclidean
+
+
+def get_euclidean_mask(original_dataset, components, mask_raw):
+    if "mask" in original_dataset:
+        # if the user provided a mask, then always use that
+        return mask_raw
+    mask_euclidean = np.not_equal(components, 0)
+    mask_euclidean = np.logical_and(mask_euclidean, mask_raw)
+    mask_euclidean = dilate_mask(original_dataset, mask_euclidean)
+    mask_euclidean = mask_euclidean.astype(np.uint8)
+    return mask_euclidean
+
+
+def check_and_update_shapes(components, affinities, mask, output_shape):
+    n_spatial_dimensions = len(output_shape)
     components_shape = (1,) + output_shape
-    mask_shape = (1,) + output_shape
     affinities_shape = (n_spatial_dimensions,) + output_shape
-    component_slices = [slice(0, l) for l in original_dataset['components'].shape]
-    component_slices[-n_spatial_dimensions:] = output_slice
-    logger.debug("component_slices: {}".format(component_slices))
-    components_array = get_zero_padded_array_slice(original_dataset['components'], component_slices)
-    source_class = type(original_dataset['components'])
-    components_are_from_dvid = source_class in dvid_classes
-    exclude_strings = original_dataset.get('body_names_to_exclude', [])
-    if exclude_strings and components_are_from_dvid:
-        dvid_uuid = original_dataset['components'].uuid
-        components_to_keep = get_good_components(dvid_uuid, exclude_strings)
-        logger.debug("components before: {}".format(list(np.unique(components_array))))
-        components_array = replace_array_except_whitelist(components_array, 0, components_to_keep)
-        logger.debug("components after: {}".format(list(np.unique(components_array))))
-    minimum_component_size = original_dataset.get('minimum_component_size', 0)
-    if minimum_component_size > 0:
-        components_array = replace_infrequent_values(components_array, minimum_component_size, 0)
-    component_erosion_steps = original_dataset.get('component_erosion_steps', 0)
-    if component_erosion_steps > 0:
-        components_array = erode_value_blobs(
-            components_array,
-            steps=component_erosion_steps,
-            values_to_ignore=(0,))
-    components_for_malis = components_array.reshape(output_shape)
-    affinities_from_components = malis.seg_to_affgraph(
-        components_for_malis,
-        original_dataset['nhood'])
-    components_array, _ = malis.connected_components_affgraph(
-        affinities_from_components,
-        original_dataset['nhood'])
-    components_array = shift_up_component_values(components_array)
-    components_array = components_array.reshape(components_shape)
-    if 'label' in original_dataset:
-        label_shape = original_dataset['label'].shape
-        label_slices = [slice(0, l) for l in label_shape]
-        label_slices[-n_spatial_dimensions:] = output_slice
-        affinities_array = get_zero_padded_array_slice(original_dataset['label'], label_slices)
-    else:
-        # compute affinities from components
-        logger.debug("Computing affinity labels from components because 'label' wasn't provided in data source.")
-        affinities_array = affinities_from_components
-    assert affinities_array.shape == affinities_shape, \
-        "affinities_array.shape is {actual} but should be {desired}".format(
-            actual=str(affinities_array.shape), desired=str(affinities_shape))
+    mask_shape = (1,) + output_shape
+    components = components.reshape(components_shape)
+    assert affinities.shape == affinities_shape, \
+        "affinities.shape is {actual} but should be {desired}".format(
+            actual=str(affinities.shape), desired=str(affinities_shape))
+    mask = mask.reshape(mask_shape)
+    return components, affinities, mask
+
+
+def dilate_mask(original_dataset, mask):
+    mask_dilation_steps = original_dataset.get('mask_dilation_steps', 0)
+    if mask_dilation_steps > 0:
+        mask = ndimage.binary_dilation(mask, iterations=mask_dilation_steps)
+    return mask
+
+
+def get_raw_mask(original_dataset, output_slice, components):
     if 'mask' in original_dataset:
-        mask_array = get_zero_padded_array_slice(original_dataset['mask'], output_slice)
+        mask = get_zero_padded_array_slice(original_dataset['mask'], output_slice)
     else:
+        source_class = type(original_dataset['components'])
+        components_are_from_dvid = source_class in dvid_classes
         if components_are_from_dvid:
             # infer mask values: 1 if component is nonzero, 0 otherwise
-            mask_array = np.not_equal(components_array, 0)
+            mask = np.not_equal(components, 0)
             logger.debug("No mask provided. Setting to 1 where components != 0.")
         else:
             # assume no masking
-            mask_array = np.ones_like(components_array, dtype=np.uint8)
+            mask = np.ones_like(components, dtype=np.uint8)
             logger.debug("No mask provided. Setting to 1 where outputs exist.")
-    mask_dilation_steps = original_dataset.get('mask_dilation_steps', 0)
-    if mask_dilation_steps > 0:
-        mask_array = ndimage.binary_dilation(mask_array, iterations=mask_dilation_steps)
-    mask_array = mask_array.astype(np.uint8)
-    mask_array = mask_array.reshape(mask_shape)
-    return components_array, affinities_array, mask_array
+    mask = mask.astype(np.uint8)
+    return mask
+
+
+def compress_and_shift_up_components(original_dataset, output_shape, components):
+    affinities_from_components = malis.seg_to_affgraph(
+        components.reshape(output_shape),
+        original_dataset['nhood'])
+    components, _ = malis.connected_components_affgraph(
+        affinities_from_components,
+        original_dataset['nhood'])
+    components = shift_up_component_values(components)
+    return components, affinities_from_components
+
+
+def erode_components(original_dataset, components):
+    component_erosion_steps = original_dataset.get('component_erosion_steps', 0)
+    if component_erosion_steps > 0:
+        components = erode_value_blobs(
+            components,
+            steps=component_erosion_steps,
+            values_to_ignore=(0,))
+    return components
+
+
+def remove_small_components(original_dataset, components):
+    minimum_component_size = original_dataset.get('minimum_component_size', 0)
+    if minimum_component_size > 0:
+        components = replace_infrequent_values(components, minimum_component_size, 0)
+    return components
+
+
+def remove_named_components(original_dataset, components):
+    exclude_strings = original_dataset.get('body_names_to_exclude', [])
+    source_class = type(original_dataset['components'])
+    components_are_from_dvid = source_class in dvid_classes
+    if exclude_strings and components_are_from_dvid:
+        dvid_uuid = original_dataset['components'].uuid
+        components_to_keep = get_good_components(dvid_uuid, exclude_strings)
+        logger.debug("components before: {}".format(list(np.unique(components))))
+        components = replace_array_except_whitelist(components, 0, components_to_keep)
+        logger.debug("components after: {}".format(list(np.unique(components))))
+    return components
+
+
+def get_affinities(original_dataset, output_slice, affinities_from_components):
+    if 'label' in original_dataset:
+        label_shape = original_dataset['label'].shape
+        label_slices = [slice(0, l) for l in label_shape]
+        n_spatial_dimensions = len(output_slice)
+        label_slices[-n_spatial_dimensions:] = output_slice
+        affinities = get_zero_padded_array_slice(original_dataset['label'], label_slices)
+    else:
+        # compute affinities from components
+        logger.debug("Computing affinity labels from components because 'label' wasn't provided in data source.")
+        affinities = affinities_from_components
+    return affinities
+
+
+def get_raw_components(original_dataset, output_slices):
+    component_slices = [slice(0, l) for l in original_dataset['components'].shape]
+    n_spatial_dimensions = len(output_slices)
+    component_slices[-n_spatial_dimensions:] = output_slices
+    logger.debug("component_slices: {}".format(component_slices))
+    components_raw = get_zero_padded_array_slice(original_dataset['components'], component_slices)
+    return components_raw
 
 
 def get_input(original_dataset, input_slice, transform):
