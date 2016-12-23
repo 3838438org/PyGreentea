@@ -10,6 +10,11 @@ def get_zero_padded_slice_from_array_by_offset(array, origin, shape):
         for offset, slice_width, source_width
         in zip(origin, shape, array.shape)
     ])
+    totally_out_of_bounds = \
+        any(array_max_ <= o for o, array_max_ in zip(origin, array.shape)) or \
+        any(o + s <= 0 for o, s in zip(origin, shape))
+    if totally_out_of_bounds:
+        return result
     target_slices = tuple([
         slice(max(-offset, 0), min(slice_width, source_width-offset), 1)
         for offset, slice_width, source_width
