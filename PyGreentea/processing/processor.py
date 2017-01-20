@@ -13,6 +13,17 @@ class Processor(object):
 
     @staticmethod
     def import_and_process(net_path, caffemodel_path, array_like, target):
+        def check_roi(offset, shape):
+            import dvision
+            slices = tuple(slice(x, x + l) for x, l in zip(offset, shape))
+            roi = dvision.DVIDRegionOfInterest(
+                "slowpoke3",
+                32773,
+                "e402c09ddd0f45e980d9be6e9fcb9bd0",
+                "seven_column_roi"
+            )
+            return roi.is_masked(slices)
+
         def initialize_net():
             import os
             import PyGreentea as pygt
@@ -47,10 +58,18 @@ class Processor(object):
             pred = process_array_with_net(net, array_like, target)
             return pred
 
-        pred = generate_pred(array_like, target)
-        pred_summary = dict(pred_shape=pred.shape,
-                            source_offset=array_like.offset,
-                            source_shape=array_like.shape)
+        print("Checking ROI...")
+        masked = check_roi(array_like.offset, array_like.shape)
+        print("Checked  ROI...")
+        if masked:
+            print("Skipping because masked: {}, {}".format(array_like.offset, array_like.shape))
+            pred_summary = dict(source_offset=array_like.offset,
+                                source_shape=array_like.shape)
+        else:
+            pred = generate_pred(array_like, target)
+            pred_summary = dict(pred_shape=pred.shape,
+                                source_offset=array_like.offset,
+                                source_shape=array_like.shape)
         return pred_summary,
 
     def process(self, source, target):

@@ -18,7 +18,9 @@ class DVIDRegionOfInterest(object):
         self._roi_cache = None
 
     def is_masked(self, slices):
-        return all(mask_value == 0 for mask_value in self[slices])
+        # True if mask is all zero, else False
+        # http://stackoverflow.com/a/23567941/781938
+        return not np.any(self[slices])
 
     def _make_url_for_slices(self, slices):
         n_spatial_dims = len(slices)
