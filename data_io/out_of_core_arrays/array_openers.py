@@ -79,27 +79,35 @@ class H5PyDArrayHandler(BaseArrayHandler):
             raise e
 
 
-class ZarrArrayHandler(object):
+class ZarrArrayHandler(BaseArrayHandler):
     def __init__(self, path, key, name, shape, chunk_shape, dtype):
         self.path = path
         self.key = key
         self.name = name
-        self.shape = shape
-        self.chunk_shape = chunk_shape
-        self.dtype = dtype
+        self._shape = shape
+        self._chunk_shape = chunk_shape
+        self._dtype = dtype
+
+    def initialize(self):
+        import zarr
+        zarr.open_array(self.path, mode="w", shape=self._shape,
+                        chunks=self._chunk_shape, dtype=self._dtype, fill_value=0)
+        return
 
     @contextmanager
     def open_array(self, mode="r"):
+        # modes explained at http://zarr.readthedocs.io/en/latest/api/creation.html?highlight=mode#zarr.creation.open_array
         import zarr
-        def _open():
-            z = zarr.open_array(self.path, mode=mode, shape=self.shape,
-                                chunks=self.chunk_shape, dtype=self.dtype, fill_value=0)
-            return z
-        try:
-            z = _open()
-        except KeyError:
-            self.initialize()
-            z = _open()
+        if mode in ("w", "w-"):
+            z = zarr.open_array(self.path, mode=mode, shape=self._shape,
+                                chunks=self._chunk_shape, dtype=self._dtype, fill_value=0)
+        else:  # mode in ("a", "r", "r+"), or something else, which zarr can complain about if it wants to
+            # if it doesn't exist, create it with the correct arguments
+            try:
+                z = zarr.open_array(self.path, mode=mode, fill_value=0)
+            except:
+                self.initialize()
+                z = zarr.open_array(self.path, mode=mode, fill_value=0)
         yield z
 
 
