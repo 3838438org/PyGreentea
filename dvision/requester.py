@@ -7,11 +7,11 @@ from retrying import retry
 from dvision import logger
 
 
-def is_socket_error(exception):
+def is_network_error(exception):
     """
-    Only retry if the exception is a SocketError. Fail otherwise.
+    Retry if a network-related exception occurs. Fail otherwise.
     """
-    return isinstance(exception, SocketError)
+    return any([isinstance(exception, SocketError), isinstance(exception, requests.RequestException)])
 
 
 class DVIDRequester(object):
@@ -20,7 +20,7 @@ class DVIDRequester(object):
         self.session = requests.Session()
 
     @retry(wait_exponential_multiplier=100, wait_exponential_max=10000,
-           retry_on_exception=is_socket_error, wrap_exception=True)
+           retry_on_exception=is_network_error, wrap_exception=True)
     def get(self, *args, **kwargs):
         logger.debug("Getting url " + repr(args))
         with requests.Session() as session:
@@ -30,10 +30,13 @@ class DVIDRequester(object):
             if response.ok:
                 return response
             else:
+                import traceback
+                with open("/groups/turaga/home/grisaitisw/bad_response.txt", 'a') as f:
+                    f.write(response.text)
                 raise Exception("Bad response: {}".format(response.text))
 
     @retry(wait_exponential_multiplier=100, wait_exponential_max=10000,
-           retry_on_exception=is_socket_error, wrap_exception=True)
+           retry_on_exception=is_network_error, wrap_exception=True)
     def post(self, *args, **kwargs):
         url_args = list(args) + [kwargs.get('url', '')]
         hostname_is_ok = any([
