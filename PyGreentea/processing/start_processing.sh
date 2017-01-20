@@ -4,7 +4,7 @@ echo $container_name
 
 nvidia-docker rm $container_name
 
-sudo mount --make-shared /nobackup/turaga
+sudo mount --make-shared /nrs/turaga
 
 NV_GPU=1 \
     nvidia-docker run -it -d \
@@ -23,4 +23,4 @@ NV_GPU=1 \
 #    /bin/bash -c "HOME=/groups/turaga/home/grisaitisw USER=grisaitisw python -u process_stuff.py"
 #    /bin/bash -c "HOME=/groups/turaga/home/grisaitisw USER=grisaitisw ls -la ~"
 
-#    -v /nobackup/turaga:/nobackup/turaga:shared \
+#    -v /nrs/turaga:/nrs/turaga:shared \

@@ -5,12 +5,12 @@ echo $container_name
 
 nvidia-docker rm $container_name
 
-sudo mount --make-shared /nobackup/turaga
+sudo mount --make-shared /nrs/turaga
 
 NV_GPU=$nv_gpu \
     nvidia-docker run -d \
     -u `id -u $USER` \
-    -v /nobackup/turaga:/nobackup/turaga:shared \
+    -v /nrs/turaga:/nrs/turaga:shared \
     -v /scratch/affinities:/scratch/affinities \
     -v /groups/turaga/home:/groups/turaga/home \
     -v ~/src/PyGreentea:/opt/PyGreentea \

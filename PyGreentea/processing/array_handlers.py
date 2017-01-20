@@ -68,7 +68,7 @@ class H5PYDAffinityHandler(object):
 
     def __init__(self, dname, model, iteration,
                  shape=(3, 10000, 10000, 10000), chunk_shape=(3, 32, 32, 32),
-                 root_dir="/nobackup/turaga/grisaitisw/affinities"):
+                 root_dir="/nrs/turaga/grisaitisw/affinities"):
         self.dname = dname
         self.model = model
         self.iteration = str(iteration)
@@ -124,7 +124,7 @@ class H5PYAffinityHandler(H5PYDAffinityHandler):
 
 
 class SimpleHDF5AffinitySaver(object):
-    def __init__(self, dname, modelname, iteration, root_dir="/nobackup/turaga/grisaitisw/affinities"):
+    def __init__(self, dname, modelname, iteration, root_dir="/nrs/turaga/grisaitisw/affinities"):
         self.dname = dname
         self.modelname = modelname
         self.iteration = str(iteration)
