@@ -30,7 +30,7 @@ class BaseArrayHandler(object):
 
 
 class GenericArrayHandler(BaseArrayHandler):
-    def __init__(self, array_like, name):
+    def __init__(self, array_like, name=None):
         self.array_like = array_like
         self.name = name
 
@@ -40,7 +40,7 @@ class GenericArrayHandler(BaseArrayHandler):
 
 
 class H5PyArrayHandler(BaseArrayHandler):
-    def __init__(self, path, key, name):
+    def __init__(self, path, key, name=None):
         self.path = path
         self.key = key
         self.name = name
@@ -54,7 +54,7 @@ class H5PyArrayHandler(BaseArrayHandler):
 
 
 class H5PyDArrayHandler(BaseArrayHandler):
-    def __init__(self, path, key, name, host="http://slowpoke2:5000"):
+    def __init__(self, path, key, name=None, host="http://slowpoke2:5000"):
         self.path = path
         self.key = key
         self.name = name
@@ -80,7 +80,7 @@ class H5PyDArrayHandler(BaseArrayHandler):
 
 
 class ZarrArrayHandler(BaseArrayHandler):
-    def __init__(self, path, key, name, shape, chunk_shape, dtype):
+    def __init__(self, path, key, name=None, shape=None, chunk_shape=None, dtype=None):
         self.path = path
         self.key = key
         self.name = name
