@@ -244,7 +244,6 @@ def get_input(original_dataset, input_slice, transform):
 def get_numpy_dataset(original_dataset, input_slice, output_slice, transform):
     dataset_numpy = dict()
     dataset_numpy["name"] = "{}_at_input_{}_and_output_{}".format(original_dataset.get("name", "Untitled"), input_slice, output_slice)
-    image = get_input(original_dataset, input_slice, transform)
     # load outputs if desired
     if output_slice is not None:
         component_erosion_steps = original_dataset.get('component_erosion_steps', 0)
@@ -257,6 +256,7 @@ def get_numpy_dataset(original_dataset, input_slice, output_slice, transform):
         good_enough = mask_fraction_of_this_batch > mask_threshold
         if not good_enough:
             return None
+        image = get_input(original_dataset, input_slice, transform)
         simple_augment = original_dataset.get("simple_augment", False)
         if simple_augment:
             dataset_to_augment = dict(
@@ -278,6 +278,8 @@ def get_numpy_dataset(original_dataset, input_slice, output_slice, transform):
         dataset_numpy['label'] = affinities[de_dilation_slices]
         dataset_numpy['mask'] = mask[de_dilation_slices]
         dataset_numpy['nhood'] = original_dataset['nhood']
+    else:
+        image = get_input(original_dataset, input_slice, transform)
     dataset_numpy['data'] = image
     return dataset_numpy
 
