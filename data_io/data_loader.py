@@ -4,13 +4,14 @@ import multiprocessing
 import sys
 import time
 import traceback
+from functools import reduce
 from operator import mul
 
 import numpy as np
-from functools import reduce
-
 from data_io import logger
-from .dataset_reading import get_numpy_dataset, reopen_dataset
+from data_io.minibatches.greentea_minibatch import get_numpy_dataset
+from data_io.out_of_core_arrays.array_reopening import reopen_dataset
+
 from .util import get_slices_from_dataset_offset
 
 ''' where this will be used:

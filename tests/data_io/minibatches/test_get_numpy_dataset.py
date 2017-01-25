@@ -2,11 +2,10 @@ from __future__ import print_function
 
 import unittest
 
-import numpy as np
 import h5py
 import malis
-
-from data_io.dataset_reading import get_numpy_dataset
+import numpy as np
+from data_io.minibatches.greentea_minibatch import get_numpy_dataset
 from data_io.util import replace_array_except_whitelist
 from dvision import DVIDDataInstance
 from dvision.component_filtering import get_good_components

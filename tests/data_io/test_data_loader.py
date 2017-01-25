@@ -4,10 +4,10 @@ import unittest
 
 import h5py
 import numpy as np
-
 from data_io import DataLoader
-from data_io.dataset_reading import get_numpy_dataset
+from data_io.minibatches.greentea_minibatch import get_numpy_dataset
 from dvision import DVIDDataInstance
+
 from .load_datasets import get_train_dataset
 
 
