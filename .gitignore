@@ -1,3 +1,5 @@
+*.pickle
+
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[cod]
@@ -60,3 +62,4 @@ target/
 .project
 .pydevproject
 .idea
+
