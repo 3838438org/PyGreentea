@@ -1,6 +1,7 @@
 import os
 
 import pickle
+import unittest
 
 from dvision import dvid_requester
 
@@ -46,3 +47,13 @@ def get_good_components(uuid, name_substrings_to_exclude):
     if args not in good_components_cache:
         good_components_cache[args] = load_good_components(uuid, name_substrings_to_exclude)
     return good_components_cache[args]
+
+
+class TestRequestGoodComponents(unittest.TestCase):
+    def test_request_good_components(self):
+        components = request_good_components("e402c09ddd0f45e980d9be6e9fcb9bd0", ["glia"],
+                                             hostname='emdata2.int.janelia.org', port=7000)
+        components2 = request_good_components("e402c09ddd0f45e980d9be6e9fcb9bd0", ["glia"],
+                                             hostname='emdata2.int.janelia.org', port=80)
+        # components2 = request_good_components("3b548cfb0faa4339bb09f2201bd68fd9", ["glia"])
+        assert components == components2  # True as of Feb 1 2017
