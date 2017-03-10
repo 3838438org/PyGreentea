@@ -1,3 +1,5 @@
+from __future__ import print_function
+
 from socket import error as SocketError
 
 import requests
@@ -19,7 +21,7 @@ class DVIDRequester(object):
         self.whitelist = hostname_whitelist
         self.session = requests.Session()
 
-    @retry(wait_exponential_multiplier=100, wait_exponential_max=10000,
+    @retry(wait_exponential_multiplier=100, wait_exponential_max=60000,
            retry_on_exception=is_network_error, wrap_exception=True)
     def get(self, *args, **kwargs):
         logger.debug("Getting url " + repr(args))
@@ -30,7 +32,6 @@ class DVIDRequester(object):
             if response.ok:
                 return response
             else:
-                import traceback
                 with open("/groups/turaga/home/grisaitisw/bad_response.txt", 'a') as f:
                     f.write(response.text)
                 raise Exception("Bad response: {}".format(response.text))

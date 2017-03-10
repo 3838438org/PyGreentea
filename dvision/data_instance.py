@@ -10,8 +10,8 @@ class DVIDDataInstance(object):
         self.node = node
         self.uuid = node
         self.name = name
-        api_url = 'http://' + self.hostname + ':' + str(port) + '/api/'
-        self.url_prefix = api_url + 'node/' + node + '/' + name + '/'
+        self.api_url = 'http://' + self.hostname + ':' + str(port) + '/api/'
+        self.url_prefix = self.api_url + 'node/' + node + '/' + name + '/'
         self._info_cache = None
 
     @property

@@ -7,14 +7,14 @@ logger.setLevel(logging.INFO)
 
 from .requester import DVIDRequester
 
-dvid_requester = DVIDRequester(['slowpoke1'])
+dvid_requester = DVIDRequester(['slowpoke1', 'slowpoke3'])
 
 import numpy as np
 
 dtype_mappings = {
     "imagetile": None,
     "googlevoxels": None,
-    "roi": None,
+    "roi": np.dtype("uint8"),
     "uint8blk": np.dtype("uint8"),
     "labelvol": None,
     "annotation": None,

@@ -1,21 +1,25 @@
 import numpy as np
 
-from dvision import dvid_requester, logger
+from dvision import dvid_requester, DVIDDataInstance
 
 
-class DVIDRegionOfInterest(object):
-    dtype = np.uint8
+class Block(object):
+    def __init__(self, start, stop):
+        """
+        :param start: start coordinate
+        :param stop: end of slice
+        """
+        self.start = start
+        self.stop = stop
 
-    def __init__(self, hostname, port, node, name):
-        self.hostname = hostname
-        self.port = port
-        self.node = node
-        self.uuid = node
-        self.name = name
-        api_url = 'http://' + self.hostname + ':' + str(port) + '/api/'
-        self.url_prefix = api_url + 'node/' + node + '/' + name + '/'
-        self._info_cache = None
-        self._roi_cache = None
+    @property
+    def slices(self):
+        return tuple(slice(x0, x1) for x0, x1 in zip(self.start, self.stop))
+
+
+class DVIDRegionOfInterest(DVIDDataInstance):
+    shape = None
+    mask_value = 1
 
     def is_masked(self, slices):
         # True if mask is all zero, else False
@@ -34,6 +38,23 @@ class DVIDRegionOfInterest(object):
         url = self.url_prefix + 'mask/' + axes_str + '/' + shape_str + '/' + offset_str
         return url
 
+    def get_partition(self, batchsize=16):
+        """
+        :param batchsize: # of blocks along each face of each partition
+        :return: list of subvolumes
+        """
+        # url = "http://slowpoke3:32788/api/node/341635bc8c864fa5acbaf4558122c0d5/seven_column_eroded7_z_gte_5024/partition?batchsize=1"
+        url = self.url_prefix + 'partition?batchsize={}'.format(batchsize)
+        response = dvid_requester.get(url)
+        assert response.ok, response.content
+        roi = response.json()
+        roi_subvolumes = roi["Subvolumes"]
+        chunks = tuple(
+            (tuple(reversed(subvolume["MinPoint"])),
+             tuple([max_ + 1 for max_ in reversed(subvolume["MaxPoint"])]))
+            for subvolume in roi_subvolumes)
+        return [Block(start=c[0], stop=c[1]) for c in chunks]
+
     def __getitem__(self, slices):
         for s in slices:
             if type(s) is not slice:
@@ -46,6 +67,8 @@ class DVIDRegionOfInterest(object):
         array = np.fromstring(dvid_octet_stream, dtype=self.dtype)
         shape_of_slices = tuple([s.stop - s.start for s in slices])
         array = array.reshape(shape_of_slices)
+        if self.mask_value != 1:
+            array *= self.mask_value
         return array
 
     def __setitem__(self, key, value):
