@@ -1,3 +1,5 @@
+from __future__ import print_function
+
 import numpy as np
 
 from dvision import dtype_mappings, dvid_requester, logger
@@ -53,6 +55,13 @@ class DVIDDataInstance(object):
             shape = tuple(shape)
         shape = tuple(reversed(shape))
         return shape
+
+    def initialize(self, typename, versioned=False):
+        try:
+            initialize = initializers[typename]
+        except KeyError:
+            raise NotImplementedError
+        initialize(self.hostname, self.port, self.uuid, self.name, versioned=versioned)
 
     def __setitem__(self, slices, array):
         shape_of_slices = tuple([s.stop - s.start for s in slices])
@@ -117,3 +126,53 @@ class DVIDDataInstanceImageURLGetter(object):
         url = self.dvid_data_instance.url_prefix + 'raw/' + axes_str + '/' + \
               + shape_str + '/' + offset_str + '/' + self.image_file_type
         return url
+
+
+def make_label_instance(hostname, port, uuid, name, versioned=False):
+    """
+    Make labelblk and labelvol, synced, in DVID repo
+    :param hostname:
+    :param port:
+    :param uuid:
+    :param name:
+    :param versioned:
+    :return: None
+    """
+    # 1. initialize labelblk, not versioned
+    # 2. initialize labelvol, not versioned
+    # 3. sync one with other
+    import json
+    import requests
+    def make_label_instance_and_check(data):
+        url = "http://{h}:{p}/api/repo/{u}/instance" \
+            .format(h=hostname, p=port, u=uuid)
+        r = requests.post(url, data)
+        try:
+            assert r.ok, (r.url, r.text)
+        except:
+            if "already exists" not in r.text:
+                raise
+        return r
+
+    name_vol = name + "-vol"
+    name_blk = name
+    versioned = "true" if versioned else "false"
+    data = json.dumps(dict(typename="labelblk", dataname=name_blk, versioned=versioned))
+    make_label_instance_and_check(data)
+    data = json.dumps(dict(typename="labelvol", dataname=name_vol, versioned=versioned))
+    make_label_instance_and_check(data)
+    url = "http://{h}:{p}/api/node/{u}/{n}/sync" \
+        .format(h=hostname, p=port, u=uuid, n=name_blk)
+    data = json.dumps(dict(sync=name_vol))
+    r = requests.post(url, data)
+    assert r.ok, r.text
+    url = "http://{h}:{p}/api/node/{u}/{n}/sync" \
+        .format(h=hostname, p=port, u=uuid, n=name_vol)
+    data = json.dumps(dict(sync=name_blk))
+    r = requests.post(url, data)
+    assert r.ok, r.text
+
+
+initializers = dict(
+    labelblk=make_label_instance
+)
