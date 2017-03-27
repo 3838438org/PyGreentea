@@ -1,4 +1,4 @@
-container_name=processing-distributed-run_0822_8-370000-cx-5
+container_name=processing-distributed
 
 echo $container_name
 
@@ -16,11 +16,3 @@ NV_GPU=1 \
     --name $container_name \
     turagalab/greentea:cudnn5-caffe_gt-pygt-0.9d \
     /bin/bash -c "HOME=/groups/turaga/home/grisaitisw python -u process_stuff.py"
-
-
-
-#    /bin/bash -c "cat /groups/turaga/home/grisaitisw/.ipython/profile_greentea/security/ipcontroller-client.json"
-#    /bin/bash -c "HOME=/groups/turaga/home/grisaitisw USER=grisaitisw python -u process_stuff.py"
-#    /bin/bash -c "HOME=/groups/turaga/home/grisaitisw USER=grisaitisw ls -la ~"
-
-#    -v /nrs/turaga:/nrs/turaga:shared \

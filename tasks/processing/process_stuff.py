@@ -4,18 +4,16 @@ import os
 import time
 from pprint import pprint
 
-import ipyparallel
-import numpy as np
-
-from executors.ipyparallel_executor import executor
 import data_io
-from PyGreentea.processing import Processor
+import ipyparallel
+import jobs.run_1208_6_010000 as job
+import numpy as np
 from data_io import OutOfCoreArray
 from data_io.out_of_core_arrays import ZarrArrayHandler
 from data_io.util.shape_chunking import chunkify_shape
 from data_io.zero_padded_array import ZeroPaddedArray
-
-import jobs.test as job
+from executors.ipyparallel_executor import executor
+from tasks.processing import Processor
 
 model = job.model
 iteration = job.iteration
@@ -109,18 +107,3 @@ for ar in async_results:
         print(e)
     for item in done_result:
         pprint(item)
-
-# with target.get_array(mode="r") as a:
-#     print(a[0, 0:2, 0:2, 0:2])
-#     for offset in chunk_offsets:
-#         origin = (0,) + offset
-#         lengths = (3,) + chunk_shape
-#         slices = tuple(slice(o, o+2) for o, l in zip(origin, lengths))
-#         print(slices)
-#         print(a[slices])
-#         slices = tuple(slice(o, o+l) for o, l in zip(origin, lengths))
-#         print(np.mean(a[slices]))
-
-# slices = tuple(slice(o, o + l, 1) for o, l in zip(offsets, input_dims))
-# from data_io.zero_padded_array import ZeroPaddedArray
-# data_slice = ZeroPaddedArray(data_array)[slices]

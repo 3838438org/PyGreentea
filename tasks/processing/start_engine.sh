@@ -17,4 +17,3 @@ NV_GPU=$nv_gpu \
     --name $container_name \
     turagalab/greentea:cudnn5-caffe_gt-pygt-0.9d \
     /bin/bash -c "GLOG_minloglevel=2 HOME=/groups/turaga/home/grisaitisw ipengine --profile=greentea"
-
