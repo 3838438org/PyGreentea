@@ -6,8 +6,11 @@ import math
 
 # Import pycaffe
 from ext import caffe
-from caffe import layers as L, params as P, to_proto
-from caffe.proto import caffe_pb2
+try:
+    from caffe import layers as L, params as P, to_proto
+    from caffe.proto import caffe_pb2
+except ImportError:
+    L = P = to_proto = caffe_pb2 = None
 
 # General variables
 # Size of a float variable in bytes
