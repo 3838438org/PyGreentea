@@ -71,6 +71,14 @@ def get_outputs(original_dataset, output_slice):
         logger.debug("components before: {}".format(list(np.unique(components_array))))
         components_array = replace_array_except_whitelist(components_array, 0, components_to_keep)
         logger.debug("components after: {}".format(list(np.unique(components_array))))
+    try:
+        body_ids_to_keep = original_dataset.get('body_ids_to_include')
+        print(len(body_ids_to_keep))
+        logger.debug("components before: {}".format(list(np.unique(components_array))))
+        components_array = replace_array_except_whitelist(components_array, 0, body_ids_to_keep)
+        logger.debug("components after: {}".format(list(np.unique(components_array))))
+    except KeyError:
+        pass
     minimum_component_size = original_dataset.get('minimum_component_size', 0)
     if minimum_component_size > 0:
         components_array = replace_infrequent_values(components_array, minimum_component_size, 0)
