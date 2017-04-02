@@ -4,16 +4,19 @@ import os
 import time
 from pprint import pprint
 
-import data_io
 import ipyparallel
-import jobs.run_1208_6_010000 as job
 import numpy as np
+
+import data_io
 from data_io import OutOfCoreArray
 from data_io.out_of_core_arrays import ZarrArrayHandler
 from data_io.util.shape_chunking import chunkify_shape
 from data_io.zero_padded_array import ZeroPaddedArray
-from executors.ipyparallel_executor import executor
-from tasks.processing import Processor
+
+from .executors.ipyparallel_executor import executor
+from .jobs import run_1208_6_010000 as job
+from .processor import Processor
+
 
 model = job.model
 iteration = job.iteration
