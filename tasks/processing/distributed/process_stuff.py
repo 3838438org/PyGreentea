@@ -81,7 +81,7 @@ root_dir = "/scratch/affinities"
 timestr = time.strftime("-%Y.%m.%d-%H.%M.%S")
 
 affinity_opener = ZarrArrayHandler(
-    path=os.path.join(root_dir, model, iteration, dname + timestr),
+    path=os.path.join(root_dir, model, str(iteration), dname + timestr),
     key="main",
     name=dname,
     shape=affinity_shape,
