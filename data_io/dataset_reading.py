@@ -62,32 +62,52 @@ def get_outputs(original_dataset, output_slice):
     component_slices[-n_spatial_dimensions:] = output_slice
     logger.debug("component_slices: {}".format(component_slices))
     components_array = get_zero_padded_array_slice(original_dataset['components'], component_slices)
-    source_class = type(original_dataset['components'])
-    components_are_from_dvid = source_class in dvid_classes
-    exclude_strings = original_dataset.get('body_names_to_exclude', [])
-    if exclude_strings and components_are_from_dvid:
-        dvid_uuid = original_dataset['components'].uuid
-        components_to_keep = get_good_components(dvid_uuid, exclude_strings)
-        logger.debug("components before: {}".format(list(np.unique(components_array))))
-        components_array = replace_array_except_whitelist(components_array, 0, components_to_keep)
-        logger.debug("components after: {}".format(list(np.unique(components_array))))
     try:
-        body_ids_to_keep = original_dataset.get('body_ids_to_include')
-        print(len(body_ids_to_keep))
-        logger.debug("components before: {}".format(list(np.unique(components_array))))
-        components_array = replace_array_except_whitelist(components_array, 0, body_ids_to_keep)
-        logger.debug("components after: {}".format(list(np.unique(components_array))))
+        mask_no_idea = get_zero_padded_array_slice(original_dataset['mask'], output_slice)
+    except KeyError:
+        mask_no_idea = np.ones_like(components_array, dtype=np.dtype("uint8"))
+    mask_excluded_stuff = np.ones_like(components_array, dtype=np.dtype("bool"))
+    try:
+        dvid_uuid = original_dataset['components'].uuid
+        exclude_strings = original_dataset['body_names_to_exclude']
+        components_to_keep = get_good_components(dvid_uuid, exclude_strings)
+        components_array_after_whitelist = replace_array_except_whitelist(components_array.copy(), 0, components_to_keep)
+        mask_excluded_stuff = np.logical_and(mask_excluded_stuff, np.equal(components_array_after_whitelist, components_array))
+        del components_array_after_whitelist
+    except (KeyError, AttributeError):
+        pass
+    try:
+        body_ids_to_keep = original_dataset['body_ids_to_include']
+        components_array_after = replace_array_except_whitelist(components_array.copy(), 0, body_ids_to_keep)
+        mask_excluded_stuff = np.logical_and(mask_excluded_stuff, np.equal(components_array_after, components_array))
+        del components_array_after
     except KeyError:
         pass
-    minimum_component_size = original_dataset.get('minimum_component_size', 0)
-    if minimum_component_size > 0:
-        components_array = replace_infrequent_values(components_array, minimum_component_size, 0)
-    component_erosion_steps = original_dataset.get('component_erosion_steps', 0)
-    if component_erosion_steps > 0:
-        components_array = erode_value_blobs(
-            components_array,
-            steps=component_erosion_steps,
-            values_to_ignore=(0,))
+    try:
+        minimum_component_size = original_dataset['minimum_component_size']
+        if minimum_component_size > 0:
+            components_array_after = replace_infrequent_values(components_array.copy(), minimum_component_size, 0)
+            mask_excluded_stuff = np.logical_and(mask_excluded_stuff, np.equal(components_array_after, components_array))
+            del components_array_after
+    except KeyError:
+        pass
+    try:
+        component_erosion_steps = original_dataset['component_erosion_steps']
+        assert component_erosion_steps > 0
+        mask_all = np.logical_not(np.logical_or(
+            np.logical_not(mask_no_idea),
+            erode_value_blobs(
+                np.logical_not(np.logical_and(mask_no_idea, mask_excluded_stuff)).astype(np.dtype("uint8")),
+                steps=component_erosion_steps,
+                values_to_ignore=(0,)
+            )
+        ))
+        mask_excluded_stuff = np.logical_and(mask_no_idea, np.logical_not(mask_all))
+        components_array = mask_all * components_array
+        components_array = erode_value_blobs(components_array, steps=component_erosion_steps, values_to_ignore=(0,))
+    except (KeyError, AssertionError):
+        mask_all = np.logical_and(mask_no_idea, mask_excluded_stuff)
+        components_array = mask_all * components_array
     components_for_malis = components_array.reshape(output_shape)
     affinities_from_components = malis.seg_to_affgraph(
         components_for_malis,
@@ -96,6 +116,7 @@ def get_outputs(original_dataset, output_slice):
         affinities_from_components,
         original_dataset['nhood'])
     components_array = shift_up_component_values(components_array)
+    components_array += np.logical_not(mask_excluded_stuff)
     components_array = components_array.reshape(components_shape)
     if 'label' in original_dataset:
         label_shape = original_dataset['label'].shape
@@ -109,23 +130,7 @@ def get_outputs(original_dataset, output_slice):
     assert affinities_array.shape == affinities_shape, \
         "affinities_array.shape is {actual} but should be {desired}".format(
             actual=str(affinities_array.shape), desired=str(affinities_shape))
-    if 'mask' in original_dataset:
-        mask_array = get_zero_padded_array_slice(original_dataset['mask'], output_slice)
-    else:
-        if components_are_from_dvid:
-            # infer mask values: 1 if component is nonzero, 0 otherwise
-            mask_array = np.not_equal(components_array, 0)
-            logger.debug("No mask provided. Setting to 1 where components != 0.")
-        else:
-            # assume no masking
-            mask_array = np.ones_like(components_array, dtype=np.uint8)
-            logger.debug("No mask provided. Setting to 1 where outputs exist.")
-    mask_dilation_steps = original_dataset.get('mask_dilation_steps', 0)
-    if mask_dilation_steps > 0:
-        mask_array = ndimage.binary_dilation(mask_array, iterations=mask_dilation_steps)
-    mask_array = mask_array.astype(np.uint8)
-    mask_array = mask_array.reshape(mask_shape)
-    return components_array, affinities_array, mask_array
+    return components_array, affinities_array, mask_all
 
 
 def get_numpy_dataset(original_dataset, input_slice, output_slice, transform):
